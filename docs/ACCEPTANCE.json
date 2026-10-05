@@ -144,5 +144,31 @@
     ],
     "scope": "isolated Windows user/config/data; ASCII runtime root"
   },
-  "final_packaging_change": "Documentation and sanitized acceptance summary only; tested installer and native payload unchanged."
+  "final_packaging_change": "Documentation and sanitized acceptance summary only; tested installer and native payload unchanged.",
+  "custom_root_hook_tests": {
+    "pass": true,
+    "cases": [
+      {
+        "case": "custom ASCII root fixture install",
+        "pass": true
+      },
+      {
+        "case": "custom root plugin recall hook exits successfully",
+        "pass": true
+      },
+      {
+        "case": "hook lifecycle stored in selected runtime data root",
+        "pass": true
+      },
+      {
+        "case": "selected runtime database integrity",
+        "pass": true
+      },
+      {
+        "case": "no fallback runtime created in Chinese LocalAppData",
+        "pass": true
+      }
+    ],
+    "scope": "isolated Windows user/config/data; ASCII runtime root"
+  }
 }

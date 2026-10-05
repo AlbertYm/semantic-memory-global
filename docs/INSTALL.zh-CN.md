@@ -37,6 +37,16 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Bundle.ps1 -In
 
 按自己的磁盘选择一个可写的 ASCII 路径。此时数据保存在所选根目录的 data，插件和配置仍属于当前用户；不要以管理员身份安装到其他人的用户目录。
 
+自定义根目录还需要让插件 Hook 找到同一个运行时。先记录用户环境变量 `SEMANTIC_MEMORY_HOME` 的原值，再将它设为实际安装根；默认根目录安装不需要设置：
+
+```powershell
+[Environment]::GetEnvironmentVariable('SEMANTIC_MEMORY_HOME','User')
+[Environment]::SetEnvironmentVariable('SEMANTIC_MEMORY_HOME','D:\SemanticMemory','User')
+$env:SEMANTIC_MEMORY_HOME = 'D:\SemanticMemory'
+```
+
+这是当前用户的持久设置，不是整机共享设置。修改后注销并重新登录 Windows，再打开 Codex，保证桌面进程继承新值；当前 PowerShell 中的 `$env:` 赋值只立即影响该终端的子进程。安装器不会自动写入或恢复这个用户环境变量。彻底卸载自定义安装后恢复先前值；原值为空时可用 `[Environment]::SetEnvironmentVariable('SEMANTIC_MEMORY_HOME',$null,'User')` 清除。
+
 包内 CMD 入口使用默认 `%LOCALAPPDATA%\SemanticMemory`。采用自定义根时，在解压包目录的 PowerShell 中使用以下对应入口，并把 `D:\SemanticMemory` 换成实际路径：
 
 ```powershell
