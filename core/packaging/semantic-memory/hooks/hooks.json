@@ -1,0 +1,46 @@
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${CLAUDE_PLUGIN_ROOT}\\scripts\\semantic-memory-hook.ps1\" recall",
+            "timeout": 2,
+            "async": false,
+            "statusMessage": "Recalling semantic memory"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${CLAUDE_PLUGIN_ROOT}\\scripts\\semantic-memory-hook.ps1\" post-tool",
+            "timeout": 2,
+            "async": false,
+            "statusMessage": "Recording memory evidence"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File \"${CLAUDE_PLUGIN_ROOT}\\scripts\\semantic-memory-hook.ps1\" stop",
+            "timeout": 2,
+            "async": false,
+            "statusMessage": "Closing memory lifecycle"
+          }
+        ]
+      }
+    ]
+  }
+}

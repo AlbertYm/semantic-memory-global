@@ -1,0 +1,26 @@
+{
+  "name": "semantic-memory",
+  "version": "1.1.0-rc.1+codex.20260730154630",
+  "description": "Lifecycle hooks, memory skill, and Memory Manager entry points for the local Semantic Memory service.",
+  "author": {
+    "name": "Semantic Memory Local"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Semantic Memory",
+    "shortDescription": "Auditable local memory across Codex workspaces.",
+    "longDescription": "Adds stable lifecycle hooks and the auditable memory skill. The MCP server is registered exactly once through the user-level managed Codex configuration.",
+    "developerName": "Semantic Memory Local",
+    "category": "Productivity",
+    "capabilities": [
+      "Lifecycle hooks",
+      "Memory skill",
+      "Memory Manager"
+    ],
+    "defaultPrompt": [
+      "Recall relevant project decisions before starting this task.",
+      "Show the audit trail for memory used in this task.",
+      "Open the local Semantic Memory Manager."
+    ]
+  }
+}

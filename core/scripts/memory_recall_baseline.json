@@ -1,0 +1,10 @@
+{
+  "n_cases": 26,
+  "n_positive": 23,
+  "n_negative": 3,
+  "match_rate": 1.0,
+  "top1_rate": 0.7391,
+  "mrr": 0.8457,
+  "zero_result_rate": 0.0,
+  "false_positive": 0.6667
+}

@@ -1,0 +1,44 @@
+{
+  "name": "@albertym/neuroplastic-memory-mcp",
+  "version": "0.10.2",
+  "description": "Fast code intelligence engine for AI coding agents — single static binary MCP server",
+  "mcpName": "io.github.AlbertYm/neuroplastic-memory-mcp",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlbertYm/neuroplastic-memory-mcp.git"
+  },
+  "homepage": "https://github.com/AlbertYm/neuroplastic-memory-mcp",
+  "bugs": {
+    "url": "https://github.com/AlbertYm/neuroplastic-memory-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "claude",
+    "code-intelligence",
+    "codebase",
+    "memory",
+    "ai",
+    "llm",
+    "tree-sitter"
+  ],
+  "bin": {
+    "semantic-memory-mcp": "./bin.js"
+  },
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": ["linux", "darwin", "win32"],
+  "cpu": ["x64", "arm64"],
+  "files": [
+    "bin.js",
+    "install.js",
+    "README.md"
+  ]
+}

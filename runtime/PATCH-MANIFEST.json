@@ -1,0 +1,35 @@
+{
+  "schema": "semantic-memory-local-core-patch/v1",
+  "revision": "global-scope-local-r2",
+  "runtime_version": "v1.1.0-rc.1",
+  "base_sha256": "d7f19eb5bf16c156cc2b9cc07230bbeed6ece017e029ec5cbe46a1fb7b2b3504",
+  "candidate_sha256": "95c13aa9dc4219923b96a5d3454256c6ecbb173556c23939c570642e99e88f80",
+  "regions": [
+    {
+      "offset": 325553,
+      "old_bytes": "488d1584142a014889f1e8408e280185c07416488d157b142a014889f1e82d8e280185c00f94c0ebd1b001ebcd",
+      "new_bytes": "4889f1e8b797fbffebf09090909090909090909090909090909090909090909090909090909090909090909090",
+      "purpose": "Remove obsolete machine-name allowlist using existing project-name validation"
+    },
+    {
+      "offset": 814540,
+      "old_bytes": "7521e916020000",
+      "new_bytes": "e9ef2821019090",
+      "purpose": "Route non-project scope through events-only global check"
+    },
+    {
+      "offset": 19764928,
+      "old_bytes": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "new_bytes": "0f8423d9defe837c2450000f851ed7defe488b4c2430488d1564210100e81eefffff85c00f8505d7defee9fad8defe",
+      "purpose": "Only events+global can proceed after existing catalog resolution"
+    },
+    {
+      "offset": 392,
+      "old_bytes": "b6922d01",
+      "new_bytes": "ef922d01",
+      "purpose": "Include bounded guard branch in text virtual size"
+    }
+  ],
+  "full_source_build": false,
+  "scope": "Allow events/global after existing catalog resolution; replace obsolete machine-name allowlist with existing safe project-name validator. Original classification and other tool scope restrictions remain."
+}

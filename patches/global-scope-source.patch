@@ -1,0 +1,48 @@
+--- a/core/src/memory/memory_security.c
++++ b/core/src/memory/memory_security.c
+@@ -1,4 +1,5 @@
+ #include "memory/memory_security.h"
++#include "foundation/str_util.h"
+ 
+ #include <ctype.h>
+ #include <stdint.h>
+@@ -400,7 +401,7 @@
+         strchr(project, ':')) {
+         return false;
+     }
+-    return strcmp(project, "H-Codex_H") == 0 || strcmp(project, "H-Codex_H-neuroplastic-main") == 0;
++    return cbm_validate_project_name(project);
+ }
+ 
+ bool cbm_memory_security_injection_allowed(const char *classifier_status,
+--- a/core/src/mcp/mcp_memory_handlers.c
++++ b/core/src/mcp/mcp_memory_handlers.c
+@@ -309,7 +309,8 @@
+     }
+     bool scope_invalid = (global_lifecycle || (global_default && global_identity_valid))
+                              ? (!project || strcmp(effective_store, "project-memory") != 0 ||
+-                                (scope && strcmp(scope, "project") != 0))
++                                (scope && strcmp(scope, "project") != 0 &&
++                                 (!events || strcmp(scope, "global") != 0)))
+                              : (!project || strcmp(effective_store, "project-memory") != 0 ||
+                                 (scope && strcmp(scope, "project") != 0) ||
+                                 ((workspace || user) && !fixture_scope) ||
+--- a/core/tests/test_security.c
++++ b/core/tests/test_security.c
+@@ -89,13 +89,14 @@
+     ASSERT_TRUE(cbm_memory_security_scope_allowed("H-Codex_H", "project-memory"));
+     ASSERT_TRUE(cbm_memory_security_scope_allowed("H-Codex_H-neuroplastic-main",
+                                                   "project-memory"));
+-    ASSERT_FALSE(cbm_memory_security_scope_allowed("stage11-unknown-project",
++    ASSERT_TRUE(cbm_memory_security_scope_allowed("stage11-unknown-project",
+                                                    "project-memory"));
+     ASSERT_FALSE(cbm_memory_security_scope_allowed(NULL, "project-memory"));
+     ASSERT_FALSE(cbm_memory_security_scope_allowed("", "project-memory"));
+     ASSERT_FALSE(cbm_memory_security_scope_allowed("H-Codex_H\\..\\Other",
+                                                    "project-memory"));
+-    ASSERT_FALSE(cbm_memory_security_scope_allowed("H-Codex_H-memory", "project-memory"));
++    ASSERT_TRUE(cbm_memory_security_scope_allowed("D-independent-project", "project-memory"));
++    ASSERT_FALSE(cbm_memory_security_scope_allowed(".hidden", "project-memory"));
+     ASSERT_FALSE(cbm_memory_security_scope_allowed("H-Codex_H", "global-memory"));
+     ASSERT_TRUE(cbm_memory_security_injection_allowed("pass", "safe"));
+     ASSERT_FALSE(cbm_memory_security_injection_allowed("error", "safe"));
