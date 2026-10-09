@@ -1,59 +1,43 @@
 # 实现、源码与构建
 
+R7 主运行时、Hook 和嵌入式 Manager 来自本仓库的完整 Windows 源码构建。全局数据位于当前用户 LocalAppData，工程身份来自实际路径与 global catalog；global 记忆跨工作区召回，project 记忆保留范围过滤。
+
 ```mermaid
 flowchart LR
-  A[Codex Desktop] --> I[只读项目身份适配]
-  I --> B[专用 MCP 分页工具表]
-  A --> C[Personal Plugin Hooks]
-  C --> D[任务与 hash-only 证据]
-  B --> E[当前用户全局记忆库]
-  B --> F[项目代码知识图]
-  G[Memory Manager] --> E
-  E --> H[来源与候选召回]
+  A[Codex 召回与真实使用归因] --> B[已完成任务与结果证据]
+  H[原生命令结果 Hook] --> B
+  U[Manager 用户确认] --> B
+  B --> C[有界事务学习控制器]
+  C --> D[信用与共同使用关联]
+  D --> E[后续相关候选排序]
+  C --> F[晋升与精确重复整合]
+  C --> G[衰减与可恢复归档]
 ```
 
-全局库在当前用户 LocalAppData，工程身份来自实际路径与 global catalog。跨项目记忆的 scope_project 为 NULL；来源 project UUID 用于审计和有限相关性加成，不阻止其他工作区召回。
+## 新控制器
 
-R6 的适配位于 `packaging/windows/memory-adapter`。它只读目录并把唯一匹配的旧名称转换为已登记 UUID；核心保持作用域、秘密和注入检查。独立维护事务同步 Codex/MMCAPI 的配置来源，不写记忆库，不改变 Hook 或原生二进制。R6 安装及适配运行需要 Python 3.11+；原生 payload 沿用 R5。
+实现位于 `core/src/memory/verified_learning.c`。新增独立 `verified_learning_*` 表和追加式审计，不改写旧不可变 evidence/feedback 账本。有效信用由终态生命周期、候选、使用与真实结果收据交集计算。每任务/候选最多一次，撤回或更正重新计算；共同使用边只表示共同成功使用，不创建虚构事实边。
 
-## 源码来源
+自动触发点为检索、反馈提交和任务完成提交。配置 `CBM_VERIFIED_LEARNING=1`，暂停状态持久保存，控制与恢复采用 generation/版本 CAS 和精确幂等。64 条/64 对批次、SQLite VM 预算和全批事务防止无限维护；失败回滚。Manager 使用本地原生鉴权，用户确认接口不暴露为 MCP。命令结果只允许受支持的直接 `exec_command` / `write_stdin`，拒绝通用 JS 打印的结果和未知异步输出。
 
-`core/` 是 AlbertYm/neuroplastic-memory-mcp 的固定上游提交 `0825fca6d25b63dfe865e5834a57878a11f8efef`，包含 C 核心、上游测试、构建脚本、UI 源码和 vendored 组件。保留上游 LICENSE、THIRD_PARTY 和组件声明。公开来源及后续修改见 `patches/global-scope-source.patch`。
+旧 `CBM_MEMORY_AUTO_MAINTAIN` 保持 0，防止旧物理清理；旧 neuroplastic 策略与独立授权仍有效。参数、保护类型和恢复规则见功能文档。
 
-同步修复两个函数：旧 helper 用现有安全项目名验证器取代机器专属名称；已通过全局来源验证的 guard 允许 events/global，生命周期与其他工具的范围限制保持受控。代码索引、内容检测、受限 canary 与高级控制器不因该修复获得额外权限。
+## 源码与兼容组件边界
 
-## 本次二进制的来源边界
+`core/` 基于上游固定提交 `0825fca6d25b63dfe865e5834a57878a11f8efef`，保留 LICENSE、THIRD_PARTY 与 vendored 组件。R7 的新增代码、作用域修复、测试与 UI 公开。主 EXE 版本和哈希见 RELEASE.json。
 
-运行时基线 SHA256：`d7f19eb5bf16c156cc2b9cc07230bbeed6ece017e029ec5cbe46a1fb7b2b3504`。
+上游已提交源码缺少预编译运行时中的 4 个 `neuroplastic_*` 实现。为保留旧功能，包内另附 `semantic-memory-v21-compat.exe`，SHA256 为 `95c13aa9dc4219923b96a5d3454256c6ecbb173556c23939c570642e99e88f80`。Python 适配仅为这 4 个工具懒启动经过哈希校验的旧组件，参数与权限检查仍由旧原生实现执行。其来源是已验收的 R6 运行时，未从当前源码重建；源码闭合与逐字节可复现仍未完成。其他工具、新学习、Hook 和 GUI 由 R7 主运行时提供。
 
-发布核心 SHA256：`95c13aa9dc4219923b96a5d3454256c6ecbb173556c23939c570642e99e88f80`。
+## 构建与打包
 
-本次发布使用精确基线局部二进制兼容修订。没有从 core 全量重编译，也没有验证特定编译器、依赖和所有构建参数可生成逐字节相同 EXE。源码同步修复可供审阅与后续重建；源码存在、补丁可重放、运行时验收、逐字节可复现是不同证据。
-
-## 离线重放补丁
-
-Python 3.11+，不需 Capstone：
+`.github/workflows/verified-learning.yml` 使用 GitHub 托管 Windows runner、CLANG64、Node.js 22，运行学习、编排、记忆与 global 回归，再执行 `core/scripts/build.sh --with-ui` 和原生 Hook 完整链检查。构建输入代码公开，Actions 产物与执行记录可核验；未宣称不同时间重建逐字节一致。
 
 ```powershell
-py -3 -X utf8 tools\apply_core_patch.py <原R4核心EXE> <新的输出EXE>
+python -X utf8 tools\build_release.py --runtime-exe <R7主EXE> --legacy-runtime-exe <已核实R6EXE> --output <新输出目录>
 ```
 
-仅接受固定基线或已修订 SHA；逐区核对前后字节，最终校验整体 SHA，不覆盖未知输出，不改安装目录。没有该原始基线时可以审阅公开记录，并使用已校验的 Release EXE。
+RELEASE.json 是版本、标签、归档名及两个运行时哈希的单一来源。构建器核对哈希，生成 plugin/payload/release manifest、逐文件与 ZIP SHA256；拒绝覆盖已有发布目录。不复制私人数据、认证、配置或聊天。
 
-## 重新打包
+隔离源码检查：`python -X utf8 -m unittest discover -s tests -v`。原生 fixture 需 `SEMANTIC_MEMORY_TEST_RUNTIME` 指向 `app/versions/<版本>/semantic-memory-mcp.exe`；不得指向稳定 bin 启动器，因为它使用正式数据根。ZIP 验收设置 `SEMANTIC_MEMORY_TEST_ARCHIVE` 和已校验的 R6 `SEMANTIC_MEMORY_TEST_PREVIOUS_ARCHIVE`，使用合成用户、配置与数据库，验证安装、升级失败恢复、回滚和数据保留，不修改当前用户运行时。
 
-版本、标签、归档名与原生 SHA 的单一来源为 `RELEASE.json`。R6 将持久修复纳入安装流程，并更新插件版本、版本 payload 标识及验收记录；原生核心未重建。开发期间如果存在 `unreleased_source_revision`，打包工具会在写入前停止，避免复用旧版本身份。
-
-```powershell
-py -3 -X utf8 tools\build_release.py --runtime-exe <已修订EXE> --output dist
-```
-
-打包工具只复制公开安装代码、插件、文档、许可证和已核实 EXE；生成 plugin/payload/release manifest 与逐文件/ZIP SHA256。输出目录存在时拒绝覆盖。不会遍历本机数据、备份、Codex Home 或凭据。
-
-## 核心源码重建
-
-维护代码的隔离测试：`python -m unittest discover -s tests -v`。真实原生 MCP 测试默认跳过；设置 `SEMANTIC_MEMORY_TEST_RUNTIME` 为受管理 `app/versions/<版本>/semantic-memory-mcp.exe` 后再运行同一命令。不要指向 `bin` 稳定入口，它会固定正式数据根；测试显式拒绝此路径。测试使用仓库忽略的 `build` 临时目录和合成配置，不读取使用者的认证、记忆或配置管理器数据库。
-
-构建规则见 `core/Makefile.cbm` 与 `core/docs/`。Windows 原生工具链及上游依赖设置请按源码维护说明准备。本次没有执行完整核心编译，不把上游旧 CI 或本次包测试冒充源码重建证据。提交新的源码构建产物前，重新核对所有入口、manifest、完整分页工具协议、global/project 边界和目标电脑验收。
-
-完整 ZIP 的隔离验收：设置 `SEMANTIC_MEMORY_TEST_ARCHIVE` 为待测 R6 ZIP，`SEMANTIC_MEMORY_TEST_PREVIOUS_ARCHIVE` 为已核对 SHA256 的 R5 ZIP，运行 `python -X utf8 tests/test_release_bundle.py`。测试从 ZIP 解压后运行安装入口，使用合成用户/配置/数据与 Windows PowerShell 5.1 内置模块路径；不修改当前用户安装。
+隔离真实进程结果验证机制，不代表当前 Codex 已绑定 R7，也不代表长期自然任务的改善。目标电脑登录态、信任、长内容、缩放与 DPI 验收另列于 ACCEPTANCE.json。

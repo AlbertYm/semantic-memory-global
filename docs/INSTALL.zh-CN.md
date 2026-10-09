@@ -4,7 +4,7 @@
 
 - Windows 10/11 x64，当前普通用户，可写自己的 LocalAppData 和 `.codex`。
 - 已安装并启动过 Codex Desktop；安装前保存工作并完全退出 Codex 与 Memory Manager。
-- 使用系统 Windows PowerShell 5.1。完整包包含原生运行时。R6 安装及项目身份适配要求 Python 3.11+，`python.exe` 须可用；自定义解释器可向 `Install-Bundle.ps1` 传入 `-PythonExe`。不需要 Node.js、编译器、外部 AI 或 API key。
+- 使用系统 Windows PowerShell 5.1。完整包包含原生运行时。R7 安装及项目身份适配要求 Python 3.11+，`python.exe` 须可用；自定义解释器可向 `Install-Bundle.ps1` 传入 `-PythonExe`。不需要 Node.js、编译器、外部 AI 或 API key。
 - 原生 r2 的安装根路径须使用 ASCII 字符，可有空格。中文工作区可正常记录和召回；中文 Windows 用户名使默认 LocalAppData 路径非 ASCII 时，预检会停止且不写文件，请选择自己可写的 ASCII InstallRoot。
 - 下载需要网络；安装不下载第三方依赖。MCP 的基本记忆与 static embedding 在本地执行。Codex 自己的模型服务网络要求由 Codex 决定。
 
@@ -58,20 +58,20 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Uninstall-Bundle.ps1 -
 
 这些命令分别用于验证、配置修复、打开 Manager 和卸载；不要一次全部执行。安装、修复和卸载前须正常退出相关应用。已安装的 MCP 注册会引用所选根目录，日常在 Codex 使用时不需要每次运行这些命令。
 
-先备份自己的数据，再正常退出相关应用。若存在已启用的持久修复（包括仓库版或 R6），先使用原修复包的 `Rollback Persistent Codex Memory.cmd` 回滚；成功后运行新包的安装入口。未启用适配的 R5 可直接运行 R6 安装入口。安装器根据包版本与实际 payload 判断安装、升级或配置修复；升级保留记忆，不导入发布者数据库。旧版本与配置/插件事务备份用于恢复。
+先备份自己的数据，再正常退出相关应用。若存在已启用的持久修复（包括仓库版、R6 或 R7），先使用原修复包的 `Rollback Persistent Codex Memory.cmd` 回滚；成功后运行新包的安装入口。未启用适配的 R5/R6 可直接运行 R7 安装入口。安装器根据包版本与实际 payload 判断安装、升级或配置修复；升级保留记忆，不导入发布者数据库。旧版本与配置/插件事务备份用于恢复。
 
 已经安装相同包时重新运行入口进入配置 Repair。`Repair Semantic Memory MCP.cmd` 修复受管理注册；它不能替代缺失的新运行时升级。
 
-## 持久注册与项目身份修复（R6）
+## 持久注册与项目身份修复（R7）
 
-R6 完整 ZIP 已包含修复源码、入口和原生 payload；安装成功后无需再单独执行修复。下列独立入口用于已有受管理运行时的维护，或重新启用已回滚的适配。
+R7 完整 ZIP 已包含修复源码、入口和原生 payload；安装成功后无需再单独执行修复。下列独立入口用于已有受管理运行时的维护，或重新启用已回滚的适配。
 
-1. 安装 Python 3.11 或更高版本，确保 `python.exe` 可用。R6 安装和维护入口使用 Python 标准库，不下载依赖。缺少 Python 会在安装写入前停止。
-2. 保存工作，正常退出 Codex 和 Memory Manager。在 R6 解压目录双击 `Repair Persistent Codex Memory.cmd`。
+1. 安装 Python 3.11 或更高版本，确保 `python.exe` 可用。R7 安装和维护入口使用 Python 标准库，不下载依赖。缺少 Python 会在安装写入前停止。
+2. 保存工作，正常退出 Codex 和 Memory Manager。在 R7 解压目录双击 `Repair Persistent Codex Memory.cmd`。
 3. 修复先核对已安装核心的哈希，创建仅当前用户和 SYSTEM 可访问的事务备份，然后更新当前 Codex 配置。如果当前用户存在 `.mmcapi/mmcapi.db`，同步 Codex 专用登记、公共配置、全部 Codex 供应商模板及已有代理恢复快照；模型、服务地址、认证字段及其他应用的登记保留。共享给其他应用的旧传输字段会保护性拒绝，要求人工核对。
 4. 双击 `Verify Persistent Codex Memory.cmd` 查看持久来源与适配文件验证。重新打开 Codex，在新聊天调用 `memory_resolve_project`，传入实际绝对工作目录或 Hook 提供的当前 `task_id`，将返回的 `project_uuid` 用于记忆调用。`scope="global"` 仍要求有效项目审计锚点。
 
-已索引代码项目与已登记记忆工作区不同；`list_projects` 为空不表示没有工作区。适配只将唯一匹配的已登记目录名或兼容别名转换为 UUID；未知名称、歧义、路径穿越和非法 scope 不会获得授权。原生核心继续执行秘密和提示注入检查。核心 EXE、Hook、数据表结构和演化开关不变。
+已索引代码项目与已登记记忆工作区不同；`list_projects` 为空不表示没有工作区。适配只将唯一匹配的已登记目录名或兼容别名转换为 UUID；未知名称、歧义、路径穿越和非法 scope 不会获得授权。原生核心继续执行秘密和提示注入检查。R7 主核心与 Hook 已重建，新自动学习默认启用，旧独立授权控制器保持原限制。
 
 自定义根、独立 Codex 配置或显式配置管理器数据库可使用：
 
@@ -87,11 +87,19 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Repair-Codex-Memory.ps
 
 源代码隔离检查覆盖配置同步、未知登记拒绝、并发保护、失败回滚、其他应用保护、目录解析、真实原生写入、工具分页和管道 EOF。它不代表另一台电脑的 Codex 信任、重启绑定或 GUI 验收。
 
-## R6 包验证
+## R7 包验证
 
 双击 `Verify Semantic Memory.cmd`。自动验证覆盖版本链、完整文件 SHA256、插件一致性、受管理配置及原生 MCP initialize/tools/list。自动 PASS 不证明当前 Codex 聊天已经重新加载。
 
 重启后的真实验收：在新聊天确认专用工具可用，写一条明确的非敏感全局偏好，再从另一工作区召回。查看 Hook 的召回、hash-only evidence 和正常收尾；没有相关候选时不应伪造引用。最终回答可见性、插件信任、长内容、缩放和 DPI 需要目标电脑实际检查。
+
+## 升级后验证自动学习
+
+新聊天中确认 `memory_learning_status` 与 `memory_learning_control` 可用，使用 resolver 返回的项目 UUID 读取状态。新控制器应 enabled；全新空库在首次检索或任务完成前可能 ready=false，首次有界处理后变为 ready=true；旧维护和旧演化关闭是独立状态。打开 Manager 的“自动学习”，检查信用、关联与暂停/继续入口。
+
+选择一条实际召回并使用的记忆，执行与任务有关的真实检查，按插件协议关联候选、使用、证据并完成任务，再检查信用及下一次排序。没有可信命令结果收据时，在 Manager 审核并确认待确认结果；不能自行把模型自报告改成用户确认。两项独立成功任务才满足候选晋升条件。无候选或无已确认结果时信用不变是正常情况。
+
+通过“自动学习”暂停只停用新控制器，记忆仍可记录/召回；恢复归档需版本校验。回退整个 R7 时按下文回滚持久注册、卸载升级事务并恢复上一运行时；新增学习表保留在数据中，旧组件不使用它们。先备份数据，不用旧数据库覆盖已有新记忆。
 
 ## Manager
 

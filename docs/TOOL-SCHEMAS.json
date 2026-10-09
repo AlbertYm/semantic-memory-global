@@ -1,105 +1,2823 @@
 {
-  "source": "Current Codex specialized tool descriptions and callable argument contracts, 2026-10-05",
-  "count": 19,
+  "schema": "semantic-memory-tool-schemas/v2",
+  "version": "1.1.0-rc.1+codex.20261009152000",
+  "source_build_run": "https://github.com/AlbertYm/semantic-memory-global/actions/runs/37904309932",
   "tools": [
     {
       "name": "events",
-      "description": "Write one long-term memory item. For a CODE DECISION (why a change was made), set kind=decision and write content in four labelled sections: [Decision] what was decided; [Context] why, with the absolute date; [Rejected alternatives] options considered and why each was dropped; [Anchors] commit hashes and files touched. ONE decision per call, never bundle several. To record that a new decision reverses an earlier one, reuse the SAME entity_key (the code entity, e.g. ppr-engine) — the decision timeline is keyed on entity_key, not on overwriting. Always pass distinct summary and content; never wrap content in JSON.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__events(args: {\n  // Code symbols this memory is about, as fully-qualified names (e.g. proj.src.mod.func). Anchors the memory to the graph: drives graph-derived confidence/reusability and recall boost. Strongly recommended for decision/constraint.\n  about_code?: Array<string>;\n  // Certainty the memory is correct (0-1). When about_code is given the graph computes this from symbol degree; a value you pass is read as an OFFSET from 0.5. Leave at 0.5 to trust the graph.\n  confidence?: number;\n  // Plain text, NEVER JSON-wrapped. For kind=decision use the four sections [Decision]/[Context]/[Rejected alternatives]/[Anchors]. Convert relative dates to absolute. Required for decision/lesson/constraint.\n  content?: string;\n  context?: unknown;\n  // Optional existing active or candidate memory item in the same project store. Atomically creates exactly one derived_from edge from the new memory item to that existing memory. Project scope only; global scope is rejected. This is not an existing-to-existing edge tool.\n  derived_from_memory_id?: string;\n  // kebab-case name of the code entity the decision is about (e.g. ppr-engine, resolver). Reuse the same key across decisions on the same entity so they form one timeline.\n  entity_key?: string;\n  // 0.9 architecture-level decision | 0.7 useful lesson | 0.5 minor fact. Do not leave at default.\n  importance?: number;\n  // Controlled vocabulary: decision | lesson | constraint | preference | fact | todo | reference. Use 'decision' for code-change rationale, 'preference' for user/profile preferences.\n  kind?: string;\n  layer?: string;\n  payload: unknown;\n  // Relation verb, e.g. 'decides' for a decision\n  predicate?: string;\n  // Target project (memory DB is per-project). This is the path-derived name WITH its drive/path prefix (e.g. D-semantic-memory-mcp, not semantic-memory-mcp). If unsure, call list_projects first — a wrong name is rejected, never silently treated as an empty project.\n  project: string;\n  // How reusable across future tasks (0-1). When about_code is given the graph computes this; a value you pass is read as an OFFSET from 0.5 (>0.5 = more reusable than the graph can see). Leave at 0.5 to trust the graph.\n  reusability?: number;\n  // 'project' (default) or 'global'. 'global' stores the memory project-independently (scope_project=NULL) in a cross-project store that is visible from every project — for user profile/preferences and cross-project lessons. project is still required as anchor/audit context even when scope='global'.\n  scope?: string;\n  source?: string;\n  // Lower = tied to one file/moment, higher = general principle (0-1).\n  specificity?: number;\n  // One independent sentence stating the conclusion. MUST differ from content and read like a query someone would ask. Required for decision/lesson/constraint.\n  summary?: string;\n  // item_id of an earlier ADR this one replaces (e.g. when a decision is reversed or a dropped branch is revived). The old memory is kept as history; pass this instead of editing/deleting it.\n  supersedes?: string;\n  // Work-session id; groups memories from one episode\n  task?: string;\n  title?: string;\n  type?: string;\n  user?: string;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "title": "Events / write memory",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Write one long-term memory item. For a CODE DECISION (why a change was made), set kind=decision and write content in four labelled sections: [Decision] what was decided; [Context] why, with the absolute date; [Rejected alternatives] options considered and why each was dropped; [Anchors] commit hashes and files touched. ONE decision per call, never bundle several. To record that a new decision reverses an earlier one, reuse the SAME entity_key (the code entity, e.g. ppr-engine) — the decision timeline is keyed on entity_key, not on overwriting. Always pass distinct summary and content; never wrap content in JSON.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "scope": {
+            "type": "string",
+            "description": "'project' (default) or 'global'. 'global' stores the memory project-independently (scope_project=NULL) in a cross-project store that is visible from every project — for user profile/preferences and cross-project lessons. project is still required as anchor/audit context even when scope='global'."
+          },
+          "kind": {
+            "type": "string",
+            "description": "Controlled vocabulary: decision | lesson | constraint | preference | fact | todo | reference. Use 'decision' for code-change rationale, 'preference' for user/profile preferences."
+          },
+          "summary": {
+            "type": "string",
+            "description": "One independent sentence stating the conclusion. MUST differ from content and read like a query someone would ask. Required for decision/lesson/constraint."
+          },
+          "content": {
+            "type": "string",
+            "description": "Plain text, NEVER JSON-wrapped. For kind=decision use the four sections [Decision]/[Context]/[Rejected alternatives]/[Anchors]. Convert relative dates to absolute. Required for decision/lesson/constraint."
+          },
+          "about_code": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Code symbols this memory is about, as fully-qualified names (e.g. proj.src.mod.func). Anchors the memory to the graph: drives graph-derived confidence/reusability and recall boost. Strongly recommended for decision/constraint."
+          },
+          "supersedes": {
+            "type": "string",
+            "description": "item_id of an earlier ADR this one replaces (e.g. when a decision is reversed or a dropped branch is revived). The old memory is kept as history; pass this instead of editing/deleting it."
+          },
+          "derived_from_memory_id": {
+            "type": "string",
+            "description": "Optional existing active or candidate memory item in the same project store. Atomically creates exactly one derived_from edge from the new memory item to that existing memory. Project scope only; global scope is rejected. This is not an existing-to-existing edge tool."
+          },
+          "entity_key": {
+            "type": "string",
+            "description": "kebab-case name of the code entity the decision is about (e.g. ppr-engine, resolver). Reuse the same key across decisions on the same entity so they form one timeline."
+          },
+          "importance": {
+            "type": "number",
+            "description": "0.9 architecture-level decision | 0.7 useful lesson | 0.5 minor fact. Do not leave at default."
+          },
+          "reusability": {
+            "type": "number",
+            "description": "How reusable across future tasks (0-1). When about_code is given the graph computes this; a value you pass is read as an OFFSET from 0.5 (>0.5 = more reusable than the graph can see). Leave at 0.5 to trust the graph."
+          },
+          "specificity": {
+            "type": "number",
+            "description": "Lower = tied to one file/moment, higher = general principle (0-1)."
+          },
+          "confidence": {
+            "type": "number",
+            "description": "Certainty the memory is correct (0-1). When about_code is given the graph computes this from symbol degree; a value you pass is read as an OFFSET from 0.5. Leave at 0.5 to trust the graph."
+          },
+          "predicate": {
+            "type": "string",
+            "description": "Relation verb, e.g. 'decides' for a decision"
+          },
+          "payload": {},
+          "type": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "user": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string",
+            "description": "Work-session id; groups memories from one episode"
+          },
+          "context": {},
+          "layer": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "payload"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
       "name": "index_repository",
-      "description": "Index a repository into the knowledge graph. Special mode 'cross-repo-intelligence': skip extraction, only match Routes/Channels across projects to create CROSS_HTTP_CALLS/CROSS_ASYNC_CALLS/CROSS_CHANNEL edges. Requires target_projects param. Ensure target projects have fresh indexes first.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__index_repository(args: {\n  // All modes run type-aware LSP call/usage resolution (per-file + cross-file). full: all files + similarity/semantic edges. moderate: filtered files + similarity/semantic. fast: filtered files, no similarity/semantic. cross-repo-intelligence: match Routes/Channels across projects.\n  mode?: \"full\" | \"moderate\" | \"fast\" | \"cross-repo-intelligence\";\n  // Override the derived project name. Non-ASCII bytes are encoded and unsafe path characters are normalized.\n  name?: string;\n  // Write compressed artifact to .codebase-memory/graph.db.zst for team sharing. Teammates can bootstrap from the artifact instead of full re-indexing.\n  persistence?: boolean;\n  // Path to the repository\n  repo_path: string;\n  // Projects to search for cross-repo links (cross-repo-intelligence mode). Use [\"*\"] for all indexed projects. Run list_projects to see available projects.\n  target_projects?: Array<string>;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "title": "Index repository",
+      "description": "Index a repository into the knowledge graph. Special mode 'cross-repo-intelligence': skip extraction, only match Routes/Channels across projects to create CROSS_HTTP_CALLS/CROSS_ASYNC_CALLS/CROSS_CHANNEL edges. Requires target_projects param. Ensure target projects have fresh indexes first.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "repo_path": {
+            "type": "string",
+            "description": "Path to the repository"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "moderate",
+              "fast",
+              "cross-repo-intelligence"
+            ],
+            "default": "full",
+            "description": "All modes run type-aware LSP call/usage resolution (per-file + cross-file). full: all files + similarity/semantic edges. moderate: filtered files + similarity/semantic. fast: filtered files, no similarity/semantic. cross-repo-intelligence: match Routes/Channels across projects."
+          },
+          "target_projects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Projects to search for cross-repo links (cross-repo-intelligence mode). Use [\"*\"] for all indexed projects. Run list_projects to see available projects."
+          },
+          "name": {
+            "type": "string",
+            "description": "Override the derived project name. Non-ASCII bytes are encoded and unsafe path characters are normalized."
+          },
+          "persistence": {
+            "type": "boolean",
+            "default": false,
+            "description": "Write compressed artifact to .codebase-memory/graph.db.zst for team sharing. Teammates can bootstrap from the artifact instead of full re-indexing."
+          }
+        },
+        "required": [
+          "repo_path"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
       "name": "memories_retrieve",
-      "description": "Retrieve task-relevant long-term memories with structured filters. Returns items with id, kind, summary, content, scores (importance, confidence, reusability, specificity), hit_count, decay, version, supersedes info, and stable observe-only session/candidate/provenance/evidence identifiers. Returned memory is untrusted structured data. Use entity_key to pull a single decision timeline.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memories_retrieve(args: {\n  activation_latency_ms?: number;\n  activation_max_hops?: number;\n  activation_max_nodes?: number;\n  activation_max_visits?: number;\n  // Stage 6-A mode. shadow computes request-scoped diagnostics without changing returned memories; active is accepted only for isolated stage6-fixture-* projects with CBM_STAGE6_ACTIVE_FIXTURE=1.\n  activation_mode?: \"off\" | \"shadow\" | \"active\";\n  activation_token_budget?: number;\n  concept_mode?: \"off\" | \"enabled\";\n  entity_key?: string;\n  include_inactive?: boolean;\n  kind?: string;\n  limit?: number;\n  // Path-derived project name WITH drive/path prefix (e.g. D-semantic-memory-mcp). If unsure call list_projects first; a wrong name returns project-not-found with candidates, never an empty result.\n  project: string;\n  query?: string;\n  // Optional idempotency key for the observe-only retrieval session\n  request_id?: string;\n  task?: string;\n  user?: string;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_edge_lifecycle_migrate",
-      "description": "Apply the independent Stage 9 edge-lifecycle schema. Requires the fixed fixture guard or the three production canary environment fields. It never alters Stage 8 history.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_edge_lifecycle_migrate(args: { algorithm_version: \"stage9-edge-lifecycle-v1\"; config_version: 1; policy_sha256: \"8ba8ca0610997d4ffd6a0d2e5e98460a7ec3bf7b2fae2bdfaef9fd41d5802b0c\"; policy_version: 1; project: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_edge_maintenance",
-      "description": "Compute explainable conductance and active/cold/archived decisions. Off, shadow, and dry_run write nothing. Active requires a frozen manifest and canary guard.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_edge_maintenance(args: { algorithm_version: \"stage9-edge-lifecycle-v1\"; as_of_ms: number; config_version: 1; manifest_path?: string; manifest_sha256?: string; mode: \"off\" | \"shadow\" | \"dry_run\" | \"active\"; policy_sha256: \"8ba8ca0610997d4ffd6a0d2e5e98460a7ec3bf7b2fae2bdfaef9fd41d5802b0c\"; policy_version: 1; project: string; run_id: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_edge_restore",
-      "description": "Batch-preview or restore cold/archived edges to active. Disabled edges remain blocked. Active restore requires the same frozen manifest and canary guard as maintenance.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_edge_restore(args: { algorithm_version: \"stage9-edge-lifecycle-v1\"; as_of_ms: number; config_version: 1; edge_ids: Array<string>; manifest_path?: string; manifest_sha256?: string; mode: \"shadow\" | \"dry_run\" | \"active\"; policy_sha256: \"8ba8ca0610997d4ffd6a0d2e5e98460a7ec3bf7b2fae2bdfaef9fd41d5802b0c\"; policy_version: 1; project: string; run_id: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_feedback",
-      "description": "Append a task/result/evidence feedback event with exact replay and conflict protection. Only processing_mode=observe_only is accepted; reward is shadow-only and no long-term memory or edge state is modified. Legacy project/id/feedback calls fail closed.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_feedback(args: { action: \"confirm\" | \"reject\" | \"correct\" | \"withdraw\"; algorithm_version: string; candidate_id: string; config_version: number; edge_id?: string; event_id: string; evidence_hash: string; evidence_id: string; evidence_payload: string; evidence_ref: string; evidence_source: \"build\" | \"test\" | \"static_check\" | \"runtime\" | \"user\" | \"model\"; evidence_state: \"valid\" | \"invalid\" | \"expired\" | \"withdrawn\"; evidence_trust: \"external_verified\" | \"explicit_user\" | \"model_self_report\"; injection_id?: string; processing_mode: \"observe_only\"; project: string; result_hash: string; result_id: string; result_payload: string; result_ref: string; result_status: \"succeeded\" | \"failed\" | \"cancelled\" | \"pending\"; result_type: \"build\" | \"test\" | \"static_check\" | \"runtime\" | \"user_confirmation\" | \"health_check\"; session_id: string; supersedes_event_id?: string; task_id: string; task_type: \"build\" | \"test\" | \"static_check\" | \"runtime\" | \"user_task\" | \"health_check\"; usage_id: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_observe_injection",
-      "description": "Record a classifier-gated injection by retrieval session and candidate. The interface accepts hashes and audit metadata, never executable memory text. Exact event replay is idempotent; a changed payload conflicts without side effects.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_observe_injection(args: { candidate_id: string; classification: \"safe\" | \"prompt_injection\" | \"secret\" | \"pii\" | \"canary\" | \"rule_override\"; classifier_status: \"pass\" | \"error\"; content_hash: string; event_id: string; injection_index: number; project: string; session_id: string; target: string; token_count: number; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_observe_usage",
-      "description": "Record used, ignored, rejected, contradicted, or uncertain attribution for one candidate and optional injection. Session/candidate/injection mismatches fail closed. Exact event replay is idempotent; a changed payload conflicts without side effects.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_observe_usage(args: { candidate_id: string; event_id: string; evidence_hash?: string; evidence_ref: string; evidence_type: string; injection_id?: string; outcome: \"used\" | \"ignored\" | \"rejected\" | \"contradicted\" | \"uncertain\"; project: string; session_id: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_reinforcement_replay",
-      "description": "Preserves the fixed Stage 8 replay contract. The Stage 14 branch exposes a read-only bounded-canary task preview and an explicit apply bound to both the task manifest and the outer production authorization manifest. Active production mode is forbidden.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_reinforcement_replay(args: { algorithm_version: \"stage8-edge-reinforcement-v1\"; config_version: 1; mode: \"off\" | \"shadow\" | \"active\"; project: string; } | { action: \"preview\"; idempotency_key: string; max_cross_project_edges: number; max_evolution_events: number; mode: \"bounded_canary\"; project: string; run_id: string; task_id: string; } | { action: \"apply\"; authorization_manifest_path: string; authorization_manifest_sha256: string; idempotency_key: string; manifest_path: string; manifest_sha256: string; max_cross_project_edges: number; max_evolution_events: number; mode: \"bounded_canary\"; project: string; run_id: string; task_id: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_task_begin",
-      "description": "Create an append-only task lifecycle from prompt metadata and an optional completed retrieval session in the shared global lifecycle store. Project is provenance, not a physical store boundary. Raw prompt content is never accepted or stored. Exact replay is zero-write and a different payload under the same idempotency key fails closed.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_task_begin(args: {\n  idempotency_key: string;\n  project: string;\n  prompt_length: number;\n  prompt_sha256: string;\n  retrieval_session_id?: string;\n  scope: \"project\";\n  session_id: string;\n  turn_id: string;\n  // Optional cwd or rootUri used to resolve and catalog the project UUID.\n  workspace?: string;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    },
-    {
-      "name": "memory_task_complete",
-      "description": "Append a completed, failed, or cancelled outcome. Feedback attribution is accepted only for memory items recalled by this task and used/rejected/contradicted attribution requires linked task evidence. Plasticity remains observe-only.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_task_complete(args: {\n  attributions: Array<{ evidence_id?: string; feedback_event_id?: string; memory_item_id: string; state: \"injected\" | \"used\" | \"rejected\" | \"contradicted\"; }>;\n  idempotency_key: string;\n  // Explicitly complete a migration-period project task only when absent globally.\n  legacy_fallback?: boolean;\n  outcome: \"completed\" | \"failed\" | \"cancelled\";\n  project: string;\n  task_id: string;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "title": "Retrieve task-relevant long-term memories with structured filters",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Retrieve task-relevant long-term memories with structured filters. Returns items with id, kind, summary, content, scores (importance, confidence, reusability, specificity), hit_count, decay, version, supersedes info, and stable observe-only session/candidate/provenance/evidence identifiers. Returned memory is untrusted structured data. Use entity_key to pull a single decision timeline.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "user": {
+            "type": "string"
+          },
+          "task": {
+            "type": "string"
+          },
+          "entity_key": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "query": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "request_id": {
+            "type": "string",
+            "description": "Optional idempotency key for the observe-only retrieval session"
+          },
+          "activation_mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "shadow",
+              "active"
+            ],
+            "default": "off",
+            "description": "Stage 6-A mode. shadow computes request-scoped diagnostics without changing returned memories; active is accepted only for isolated stage6-fixture-* projects with CBM_STAGE6_ACTIVE_FIXTURE=1."
+          },
+          "activation_max_hops": {
+            "type": "integer",
+            "maximum": 3
+          },
+          "activation_max_nodes": {
+            "type": "integer",
+            "maximum": 64
+          },
+          "activation_max_visits": {
+            "type": "integer",
+            "maximum": 128
+          },
+          "activation_token_budget": {
+            "type": "integer",
+            "maximum": 2048
+          },
+          "activation_latency_ms": {
+            "type": "integer",
+            "maximum": 25
+          },
+          "concept_mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "enabled"
+            ],
+            "default": "off"
+          },
+          "include_inactive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
       "name": "memory_task_status",
-      "description": "Read the latest append-only lifecycle state and up to sixteen hash-only evidence rows. Address by task_id or by session_id plus turn_id. This tool never writes.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__memory_task_status(args: {\n  // Explicitly inspect a migration-period project store only when the task is absent globally.\n  legacy_fallback?: boolean;\n  project: string;\n  session_id?: string;\n  task_id?: string;\n  turn_id?: string;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "title": "Read one Codex task lifecycle and bounded evidence",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Read the latest append-only lifecycle state and up to sixteen hash-only evidence rows. Address by task_id or by session_id plus turn_id. This tool never writes.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "turn_id": {
+            "type": "string"
+          },
+          "legacy_fallback": {
+            "type": "boolean",
+            "description": "Explicitly inspect a migration-period project store only when the task is absent globally."
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
-      "name": "neuroplastic_capture",
-      "description": "Create a bounded project-scoped capture proposal. A/B evidence may promote only when the deterministic matrix permits it; C/model_self_report is process-local.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__neuroplastic_capture(args: { about_code?: string; authorization_path: string; authorization_sha256: string; capture_id: string; confidence?: number; content: string; entity_key?: string; evidence_grade: \"A\" | \"B\" | \"C\"; evidence_id: string; idempotency_key: string; importance?: number; kind: \"decision\" | \"constraint\" | \"preference\" | \"lesson\" | \"fact\" | \"reference\"; mode: \"off\" | \"shadow\" | \"active\"; now_ms?: number; policy_path: string; policy_sha256: string; predicate?: string; project: string; reusability?: number; scope: \"project\"; specificity?: number; summary: string; supersedes?: string; task_id: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "name": "memory_task_complete",
+      "title": "Complete or replay a Codex task lifecycle",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Append a completed, failed, or cancelled outcome. Feedback attribution is accepted only for memory items recalled by this task and used/rejected/contradicted attribution requires linked task evidence. Verified learning uses independent bounded credit when enabled.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "attributions": {
+            "type": "array",
+            "maxItems": 16,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "memory_item_id": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "injected",
+                    "used",
+                    "rejected",
+                    "contradicted"
+                  ]
+                },
+                "evidence_id": {
+                  "type": "string"
+                },
+                "feedback_event_id": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "memory_item_id",
+                "state"
+              ]
+            }
+          },
+          "legacy_fallback": {
+            "type": "boolean",
+            "description": "Explicitly complete a migration-period project task only when absent globally."
+          }
+        },
+        "required": [
+          "project",
+          "task_id",
+          "outcome",
+          "idempotency_key",
+          "attributions"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
-      "name": "neuroplastic_evolution",
-      "description": "Apply a bounded A/B evolution to an exact project item or same-project edge using the existing global_evolution_event hash chain. C/model_self_report never persists.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__neuroplastic_evolution(args: { authorization_path: string; authorization_sha256: string; edge_type?: string; evidence_grade: \"A\" | \"B\" | \"C\"; evidence_id: string; idempotency_key: string; memory_item_id: string; mode: \"off\" | \"shadow\" | \"active\"; now_ms?: number; operation: \"positive\" | \"negative\" | \"correct\" | \"archive\" | \"edge\"; policy_path: string; policy_sha256: string; project: string; target_memory_id?: string; task_id: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "name": "memory_learning_status",
+      "title": "Inspect evidence-based automatic learning",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Read bounded utility, co-use associations, recoverable archives and controller state. Requires a registered project anchor; never writes.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
-      "name": "neuroplastic_maintenance",
-      "description": "Run one bounded maintenance controller with lease, fencing, checkpoint, policy recheck and archive-only operations. It is never triggered by retrieval or events.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__neuroplastic_maintenance(args: { authorization_path: string; authorization_sha256: string; budget_seconds: number; idempotency_key: string; limit: number; mode: \"off\" | \"shadow\" | \"active\"; now_ms?: number; owner_id: string; policy_path: string; policy_sha256: string; project: string; run_id: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "name": "memory_learning_control",
+      "title": "Pause, resume or restore automatic learning",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use generation CAS and an idempotency key. Restore only the exact controller archive version; never overwrite later user edits.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "pause",
+              "resume",
+              "restore"
+            ]
+          },
+          "item_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "expected_generation": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "project",
+          "action",
+          "idempotency_key",
+          "expected_generation"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
-      "name": "neuroplastic_runtime_control",
-      "description": "Apply a CAS pause/resume to the Stage 14 runtime-control ledger. The policy and its independent authorization envelope are verified before any write.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__neuroplastic_runtime_control(args: { action: \"pause\" | \"resume\"; actor_class?: string; authorization_path: string; authorization_sha256: string; evidence_id?: string; expected_generation: number; idempotency_key: string; now_ms?: number; policy_path: string; policy_sha256: string; project: string; }): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "name": "memory_feedback",
+      "title": "Record observe-only task evidence and compute a shadow reward report",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Append a task/result/evidence feedback event with exact replay and conflict protection. Only processing_mode=observe_only is accepted; reward is shadow-only and no long-term memory or edge state is modified. Legacy project/id/feedback calls fail closed.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "processing_mode": {
+            "type": "string",
+            "enum": [
+              "observe_only"
+            ]
+          },
+          "event_id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "task_type": {
+            "type": "string",
+            "enum": [
+              "build",
+              "test",
+              "static_check",
+              "runtime",
+              "user_task",
+              "health_check"
+            ]
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "candidate_id": {
+            "type": "string"
+          },
+          "injection_id": {
+            "type": "string"
+          },
+          "usage_id": {
+            "type": "string"
+          },
+          "result_id": {
+            "type": "string"
+          },
+          "result_type": {
+            "type": "string",
+            "enum": [
+              "build",
+              "test",
+              "static_check",
+              "runtime",
+              "user_confirmation",
+              "health_check"
+            ]
+          },
+          "result_status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "cancelled",
+              "pending"
+            ]
+          },
+          "result_ref": {
+            "type": "string"
+          },
+          "result_hash": {
+            "type": "string"
+          },
+          "result_payload": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string"
+          },
+          "evidence_trust": {
+            "type": "string",
+            "enum": [
+              "external_verified",
+              "explicit_user",
+              "model_self_report"
+            ]
+          },
+          "evidence_state": {
+            "type": "string",
+            "enum": [
+              "valid",
+              "invalid",
+              "expired",
+              "withdrawn"
+            ]
+          },
+          "evidence_source": {
+            "type": "string",
+            "enum": [
+              "build",
+              "test",
+              "static_check",
+              "runtime",
+              "user",
+              "model"
+            ]
+          },
+          "evidence_ref": {
+            "type": "string"
+          },
+          "evidence_hash": {
+            "type": "string"
+          },
+          "evidence_payload": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "confirm",
+              "reject",
+              "correct",
+              "withdraw"
+            ]
+          },
+          "edge_id": {
+            "type": "string"
+          },
+          "supersedes_event_id": {
+            "type": "string"
+          },
+          "algorithm_version": {
+            "type": "string"
+          },
+          "config_version": {
+            "type": "integer",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "project",
+          "processing_mode",
+          "event_id",
+          "task_id",
+          "task_type",
+          "session_id",
+          "candidate_id",
+          "usage_id",
+          "result_id",
+          "result_type",
+          "result_status",
+          "result_ref",
+          "result_hash",
+          "result_payload",
+          "evidence_id",
+          "evidence_trust",
+          "evidence_state",
+          "evidence_source",
+          "evidence_ref",
+          "evidence_hash",
+          "evidence_payload",
+          "action",
+          "algorithm_version",
+          "config_version"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_observe_injection",
+      "title": "Record an observe-only context injection decision",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Record a classifier-gated injection by retrieval session and candidate. The interface accepts hashes and audit metadata, never executable memory text. Exact event replay is idempotent; a changed payload conflicts without side effects.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "event_id": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "candidate_id": {
+            "type": "string"
+          },
+          "injection_index": {
+            "type": "integer"
+          },
+          "target": {
+            "type": "string"
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "token_count": {
+            "type": "integer"
+          },
+          "classifier_status": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "error"
+            ]
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "safe",
+              "prompt_injection",
+              "secret",
+              "pii",
+              "canary",
+              "rule_override"
+            ]
+          }
+        },
+        "required": [
+          "project",
+          "event_id",
+          "session_id",
+          "candidate_id",
+          "injection_index",
+          "target",
+          "content_hash",
+          "token_count",
+          "classifier_status",
+          "classification"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_observe_usage",
+      "title": "Record observe-only memory usage attribution",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Record used, ignored, rejected, contradicted, or uncertain attribution for one candidate and optional injection. Session/candidate/injection mismatches fail closed. Exact event replay is idempotent; a changed payload conflicts without side effects.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "event_id": {
+            "type": "string"
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "candidate_id": {
+            "type": "string"
+          },
+          "injection_id": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "used",
+              "ignored",
+              "rejected",
+              "contradicted",
+              "uncertain"
+            ]
+          },
+          "evidence_type": {
+            "type": "string"
+          },
+          "evidence_ref": {
+            "type": "string"
+          },
+          "evidence_hash": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "event_id",
+          "session_id",
+          "candidate_id",
+          "outcome",
+          "evidence_type",
+          "evidence_ref"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_reinforcement_replay",
+      "title": "Replay feedback or control task evolution",
+      "description": "Preserves the fixed Stage 8 replay contract. The Stage 14 branch exposes a read-only bounded-canary task preview and an explicit apply bound to both the task manifest and the outer production authorization manifest. Active production mode is forbidden.",
+      "inputSchema": {
+        "type": "object",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "project": {
+                "type": "string"
+              },
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "off",
+                  "shadow",
+                  "active"
+                ]
+              },
+              "algorithm_version": {
+                "type": "string",
+                "const": "stage8-edge-reinforcement-v1"
+              },
+              "config_version": {
+                "type": "integer",
+                "const": 1
+              }
+            },
+            "required": [
+              "project",
+              "mode",
+              "algorithm_version",
+              "config_version"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "preview"
+              },
+              "mode": {
+                "type": "string",
+                "const": "bounded_canary"
+              },
+              "project": {
+                "type": "string",
+                "minLength": 1
+              },
+              "run_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "task_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "idempotency_key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "max_evolution_events": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 17
+              },
+              "max_cross_project_edges": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 16
+              }
+            },
+            "required": [
+              "action",
+              "mode",
+              "project",
+              "run_id",
+              "task_id",
+              "idempotency_key",
+              "max_evolution_events",
+              "max_cross_project_edges"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "apply"
+              },
+              "mode": {
+                "type": "string",
+                "const": "bounded_canary"
+              },
+              "project": {
+                "type": "string",
+                "minLength": 1
+              },
+              "run_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "task_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "idempotency_key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "max_evolution_events": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 17
+              },
+              "max_cross_project_edges": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 16
+              },
+              "manifest_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "manifest_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "authorization_manifest_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "authorization_manifest_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "action",
+              "mode",
+              "project",
+              "run_id",
+              "task_id",
+              "idempotency_key",
+              "max_evolution_events",
+              "max_cross_project_edges",
+              "manifest_path",
+              "manifest_sha256",
+              "authorization_manifest_path",
+              "authorization_manifest_sha256"
+            ]
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_edge_lifecycle_migrate",
+      "title": "Apply the guarded additive Stage 9 edge schema",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Apply the independent Stage 9 edge-lifecycle schema. Requires the fixed fixture guard or the three production canary environment fields. It never alters Stage 8 history.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "algorithm_version": {
+            "type": "string",
+            "const": "stage9-edge-lifecycle-v1"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "const": "8ba8ca0610997d4ffd6a0d2e5e98460a7ec3bf7b2fae2bdfaef9fd41d5802b0c"
+          },
+          "policy_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "config_version": {
+            "type": "integer",
+            "const": 1
+          }
+        },
+        "required": [
+          "project",
+          "algorithm_version",
+          "policy_sha256",
+          "policy_version",
+          "config_version"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_edge_maintenance",
+      "title": "Preview or apply deterministic edge lifecycle decisions",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Compute explainable conductance and active/cold/archived decisions. Off, shadow, and dry_run write nothing. Active requires a frozen manifest and canary guard.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "shadow",
+              "dry_run",
+              "active"
+            ]
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "as_of_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "algorithm_version": {
+            "type": "string",
+            "const": "stage9-edge-lifecycle-v1"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "const": "8ba8ca0610997d4ffd6a0d2e5e98460a7ec3bf7b2fae2bdfaef9fd41d5802b0c"
+          },
+          "policy_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "config_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "manifest_path": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "mode",
+          "run_id",
+          "as_of_ms",
+          "algorithm_version",
+          "policy_sha256",
+          "policy_version",
+          "config_version"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_edge_restore",
+      "title": "Preview or restore archived edges through append-only audit",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Batch-preview or restore cold/archived edges to active. Disabled edges remain blocked. Active restore requires the same frozen manifest and canary guard as maintenance.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "shadow",
+              "dry_run",
+              "active"
+            ]
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "as_of_ms": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "edge_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "maxItems": 100,
+            "uniqueItems": true
+          },
+          "algorithm_version": {
+            "type": "string",
+            "const": "stage9-edge-lifecycle-v1"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "const": "8ba8ca0610997d4ffd6a0d2e5e98460a7ec3bf7b2fae2bdfaef9fd41d5802b0c"
+          },
+          "policy_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "config_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "manifest_path": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "mode",
+          "run_id",
+          "as_of_ms",
+          "edge_ids",
+          "algorithm_version",
+          "policy_sha256",
+          "policy_version",
+          "config_version"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
       "name": "query_graph",
-      "description": "Execute a Cypher query against the knowledge graph for complex multi-hop patterns, aggregations, and cross-service analysis. The response includes 'total' (returned row count). There is a hard 100k row ceiling — for broad queries add LIMIT in the Cypher itself or use search_graph + offset/limit pagination instead. COMPLEXITY / BOTTLENECKS: every Function and Method node carries queryable complexity properties — cyclomatic (complexity), cognitive, loop_count, loop_depth (max nested-loop depth, a polynomial-degree proxy), plus interprocedural transitive_loop_depth (worst-case nested-loop degree propagated along CALLS edges) and a recursive flag. Additional hot-path signals: linear_scan_in_loop (count of find/contains/indexOf-style scans inside a loop — the hidden O(n^2) that loop_depth misses), alloc_in_loop (allocations/appends inside a loop), recursion_in_loop (a self-call inside a loop), unguarded_recursion (recursion with no conditionally-guarded base case), param_count and max_access_depth (structure smells). Find all hot-path candidates in one query, e.g. MATCH (f:Function) WHERE f.transitive_loop_depth >= 3 OR f.linear_scan_in_loop >= 1 RETURN f.qualified_name, f.transitive_loop_depth, f.linear_scan_in_loop ORDER BY f.transitive_loop_depth DESC.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__query_graph(args: {\n  // Optional row limit. Default: unlimited up to a 100k row ceiling. No offset support — use search_graph for paginated browsing.\n  max_rows?: number;\n  project: string;\n  // Cypher query\n  query: string;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
+      "title": "Query graph",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Execute a Cypher query against the knowledge graph for complex multi-hop patterns, aggregations, and cross-service analysis. The response includes 'total' (returned row count). There is a hard 100k row ceiling — for broad queries add LIMIT in the Cypher itself or use search_graph + offset/limit pagination instead. COMPLEXITY / BOTTLENECKS: every Function and Method node carries queryable complexity properties — cyclomatic (complexity), cognitive, loop_count, loop_depth (max nested-loop depth, a polynomial-degree proxy), plus interprocedural transitive_loop_depth (worst-case nested-loop degree propagated along CALLS edges) and a recursive flag. Additional hot-path signals: linear_scan_in_loop (count of find/contains/indexOf-style scans inside a loop — the hidden O(n^2) that loop_depth misses), alloc_in_loop (allocations/appends inside a loop), recursion_in_loop (a self-call inside a loop), unguarded_recursion (recursion with no conditionally-guarded base case), param_count and max_access_depth (structure smells). Find all hot-path candidates in one query, e.g. MATCH (f:Function) WHERE f.transitive_loop_depth >= 3 OR f.linear_scan_in_loop >= 1 RETURN f.qualified_name, f.transitive_loop_depth, f.linear_scan_in_loop ORDER BY f.transitive_loop_depth DESC.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "Cypher query"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "max_rows": {
+            "type": "integer",
+            "description": "Optional row limit. Default: unlimited up to a 100k row ceiling. No offset support — use search_graph for paginated browsing."
+          }
+        },
+        "required": [
+          "query",
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
     },
     {
       "name": "search_graph",
-      "description": "Search the code knowledge graph for functions, classes, routes, and variables. Use INSTEAD OF grep/glob when finding code definitions, implementations, or relationships. Three search modes: (1) query='update settings' for BM25 ranked full-text search with camelCase splitting and structural label boosting — recommended for natural-language discovery; (2) name_pattern='.*regex.*' for exact pattern matching; (3) semantic_query=[...] for vector cosine search that bridges vocabulary (finds 'publish' when you search 'send'). The three modes are independent and can be combined in a single call. PAGINATION: results are capped at limit (default 200) — broader queries are silently truncated. The response always includes 'total' (full match count before limit) and 'has_more' (true when total > offset+returned). Detect truncation with has_more, then page by re-calling with offset=offset+limit until has_more is false. Narrow first via label/file_pattern/min_degree before paginating large result sets.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__search_graph(args: {\n  exclude_entry_points?: boolean;\n  file_pattern?: string;\n  include_connected?: boolean;\n  label?: string;\n  // Max results per call. Default 200. Response carries 'total' (full match count) and 'has_more' (true if truncated) so callers can detect the limit and paginate.\n  limit?: number;\n  max_degree?: number;\n  min_degree?: number;\n  name_pattern?: string;\n  // Skip the first N matching nodes. Combine with 'limit' to page: increment offset by limit and re-call while has_more is true.\n  offset?: number;\n  project: string;\n  qn_pattern?: string;\n  // Natural-language or keyword full-text search using BM25 ranking. Tokens are split on whitespace; camelCase identifiers are indexed as individual words (updateCloudClient → update, cloud, client). Results are ranked with structural boosting: Functions/Methods +10, Routes +8, Classes/Interfaces +5. Noise labels (File/Folder/Module/Variable) are filtered out. When provided, name_pattern is ignored.\n  query?: string;\n  relationship?: string;\n  // MUST be an ARRAY of keyword strings (e.g. [\"send\",\"pubsub\",\"publish\"]) — NOT a single string. Each keyword is scored independently via per-keyword min-cosine; results reflect functions that score well on ALL keywords. Requires moderate/full index mode. Results appear in the 'semantic_results' field (separate from 'results').\n  semantic_query?: Array<string>;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
-    }
-  ],
-  "snapshot_note": "Historical native first-page capture; follow live tools/list pagination. Optional main-branch project adapter updates project guidance and advertises memory_resolve_project on the last page.",
-  "optional_adapter_tool": {
-    "name": "memory_resolve_project",
-    "description": "Read-only resolution of a registered Semantic Memory workspace or task to its project UUID. Does not index code, create a workspace, or write memory. Supply exactly one of workspace (actual absolute cwd), task_id (active task), or project (known UUID/legacy path name).",
-    "inputSchema": {
-      "type": "object",
-      "properties": {
-        "workspace": {
-          "type": "string",
-          "description": "Actual absolute workspace directory; never guess a host name."
+      "title": "Search graph",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Search the code knowledge graph for functions, classes, routes, and variables. Use INSTEAD OF grep/glob when finding code definitions, implementations, or relationships. Three search modes: (1) query='update settings' for BM25 ranked full-text search with camelCase splitting and structural label boosting — recommended for natural-language discovery; (2) name_pattern='.*regex.*' for exact pattern matching; (3) semantic_query=[...] for vector cosine search that bridges vocabulary (finds 'publish' when you search 'send'). The three modes are independent and can be combined in a single call. PAGINATION: results are capped at limit (default 200) — broader queries are silently truncated. The response always includes 'total' (full match count before limit) and 'has_more' (true when total > offset+returned). Detect truncation with has_more, then page by re-calling with offset=offset+limit until has_more is false. Narrow first via label/file_pattern/min_degree before paginating large result sets.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "query": {
+            "type": "string",
+            "description": "Natural-language or keyword full-text search using BM25 ranking. Tokens are split on whitespace; camelCase identifiers are indexed as individual words (updateCloudClient → update, cloud, client). Results are ranked with structural boosting: Functions/Methods +10, Routes +8, Classes/Interfaces +5. Noise labels (File/Folder/Module/Variable) are filtered out. When provided, name_pattern is ignored."
+          },
+          "label": {
+            "type": "string"
+          },
+          "name_pattern": {
+            "type": "string"
+          },
+          "qn_pattern": {
+            "type": "string"
+          },
+          "file_pattern": {
+            "type": "string"
+          },
+          "relationship": {
+            "type": "string"
+          },
+          "min_degree": {
+            "type": "integer"
+          },
+          "max_degree": {
+            "type": "integer"
+          },
+          "exclude_entry_points": {
+            "type": "boolean"
+          },
+          "include_connected": {
+            "type": "boolean"
+          },
+          "semantic_query": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "MUST be an ARRAY of keyword strings (e.g. [\"send\",\"pubsub\",\"publish\"]) — NOT a single string. Each keyword is scored independently via per-keyword min-cosine; results reflect functions that score well on ALL keywords. Requires moderate/full index mode. Results appear in the 'semantic_results' field (separate from 'results')."
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max results per call. Default 200. Response carries 'total' (full match count) and 'has_more' (true if truncated) so callers can detect the limit and paginate."
+          },
+          "offset": {
+            "type": "integer",
+            "default": 0,
+            "description": "Skip the first N matching nodes. Combine with 'limit' to page: increment offset by limit and re-call while has_more is true."
+          }
         },
-        "task_id": {
-          "type": "string",
-          "description": "Existing task id provided by the active lifecycle hook."
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "trace_path",
+      "title": "Trace path",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Trace paths through the code graph. Modes: calls (callers/callees), data_flow (value propagation with args at each hop), cross_service (through HTTP/async Route nodes). Use INSTEAD OF grep for callers, dependencies, impact analysis, or data flow tracing.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "function_name": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "direction": {
+            "type": "string",
+            "enum": [
+              "inbound",
+              "outbound",
+              "both"
+            ],
+            "default": "both"
+          },
+          "depth": {
+            "type": "integer",
+            "default": 3
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "calls",
+              "data_flow",
+              "cross_service"
+            ],
+            "default": "calls",
+            "description": "calls: follow CALLS edges. data_flow: follow CALLS+DATA_FLOWS with arg expressions. cross_service: follow HTTP_CALLS+ASYNC_CALLS+DATA_FLOWS through Routes, plus CROSS_* cross-repo edges (CROSS_HTTP_CALLS/ASYNC_CALLS/CHANNEL/GRPC_CALLS/GRAPHQL_CALLS/TRPC_CALLS) to hop into other services."
+          },
+          "parameter_name": {
+            "type": "string",
+            "description": "For data_flow mode: scope trace to a specific parameter name"
+          },
+          "edge_types": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risk_labels": {
+            "type": "boolean",
+            "default": false,
+            "description": "Add risk classification (CRITICAL/HIGH/MEDIUM/LOW) based on hop distance"
+          },
+          "include_tests": {
+            "type": "boolean",
+            "default": false,
+            "description": "Include test files in results. When false (default), test files are filtered out. When true, test nodes are included with is_test=true marker."
+          }
         },
-        "project": {
-          "type": "string",
-          "description": "Existing UUID or registered path-derived legacy project name."
+        "required": [
+          "function_name",
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "get_code_snippet",
+      "title": "Get code snippet",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Read source code for a function/class/symbol. IMPORTANT: First call search_graph to find the exact qualified_name, then pass it here. This is a read tool, not a search tool. Accepts full qualified_name (exact match) or short function name (returns suggestions if ambiguous).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "qualified_name": {
+            "type": "string",
+            "description": "Full qualified_name from search_graph, or short function name"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "include_neighbors": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "qualified_name",
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "neuroplastic_runtime_control",
+      "title": "Pause or resume the governed runtime",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Apply a CAS pause/resume to the Stage 14 runtime-control ledger. The policy and its independent authorization envelope are verified before any write.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "policy_path": {
+            "type": "string"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "authorization_path": {
+            "type": "string"
+          },
+          "authorization_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "pause",
+              "resume"
+            ]
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string"
+          },
+          "actor_class": {
+            "type": "string"
+          },
+          "expected_generation": {
+            "type": "integer"
+          },
+          "now_ms": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project",
+          "policy_path",
+          "policy_sha256",
+          "authorization_path",
+          "authorization_sha256",
+          "action",
+          "idempotency_key",
+          "expected_generation"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "neuroplastic_capture",
+      "title": "Capture one governed structured memory",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Create a bounded project-scoped capture proposal. A/B evidence may promote only when the deterministic matrix permits it; C/model_self_report is process-local.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "policy_path": {
+            "type": "string"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "authorization_path": {
+            "type": "string"
+          },
+          "authorization_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "shadow",
+              "active"
+            ]
+          },
+          "capture_id": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "const": "project"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "decision",
+              "constraint",
+              "preference",
+              "lesson",
+              "fact",
+              "reference"
+            ]
+          },
+          "summary": {
+            "type": "string",
+            "maxLength": 512
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "entity_key": {
+            "type": "string"
+          },
+          "predicate": {
+            "type": "string"
+          },
+          "about_code": {
+            "type": "string"
+          },
+          "supersedes": {
+            "type": "string"
+          },
+          "evidence_grade": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "importance": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reusability": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "specificity": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "now_ms": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project",
+          "policy_path",
+          "policy_sha256",
+          "authorization_path",
+          "authorization_sha256",
+          "mode",
+          "capture_id",
+          "task_id",
+          "evidence_id",
+          "idempotency_key",
+          "scope",
+          "kind",
+          "summary",
+          "content",
+          "evidence_grade"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "neuroplastic_maintenance",
+      "title": "Run governed archive-only maintenance",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Run one bounded maintenance controller with lease, fencing, checkpoint, policy recheck and archive-only operations. It is never triggered by retrieval or events.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "policy_path": {
+            "type": "string"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "authorization_path": {
+            "type": "string"
+          },
+          "authorization_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "shadow",
+              "active"
+            ]
+          },
+          "owner_id": {
+            "type": "string"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+          },
+          "budget_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "now_ms": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project",
+          "policy_path",
+          "policy_sha256",
+          "authorization_path",
+          "authorization_sha256",
+          "mode",
+          "owner_id",
+          "run_id",
+          "idempotency_key",
+          "limit",
+          "budget_seconds"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "neuroplastic_evolution",
+      "title": "Apply one evidence-gated evolution event",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Apply a bounded A/B evolution to an exact project item or same-project edge using the existing global_evolution_event hash chain. C/model_self_report never persists.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "policy_path": {
+            "type": "string"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "authorization_path": {
+            "type": "string"
+          },
+          "authorization_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-fA-F]{64}$"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "shadow",
+              "active"
+            ]
+          },
+          "task_id": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "memory_item_id": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "positive",
+              "negative",
+              "correct",
+              "archive",
+              "edge"
+            ]
+          },
+          "target_memory_id": {
+            "type": "string"
+          },
+          "edge_type": {
+            "type": "string"
+          },
+          "evidence_grade": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C"
+            ]
+          },
+          "now_ms": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project",
+          "policy_path",
+          "policy_sha256",
+          "authorization_path",
+          "authorization_sha256",
+          "mode",
+          "task_id",
+          "evidence_id",
+          "idempotency_key",
+          "memory_item_id",
+          "operation",
+          "evidence_grade"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "search_code",
+      "title": "Search code",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Graph-augmented code search. Finds text patterns via grep, then enriches results with the knowledge graph: deduplicates matches into containing functions, ranks by structural importance (definitions first, popular functions next, tests last). Modes: compact (default, signatures only — token efficient), full (with source), files (just file paths). Use path_filter regex to scope results. TRUNCATION: enriched results are capped at limit (default 10). Response carries 'total_grep_matches' (raw grep hit count) and 'total_results' (deduplicated function count) — compare to limit to detect truncation. There is no offset parameter; to see more, raise limit or narrow the query with file_pattern / path_filter.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "pattern": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "file_pattern": {
+            "type": "string",
+            "description": "Glob for grep --include (e.g. *.go)"
+          },
+          "path_filter": {
+            "type": "string",
+            "description": "Regex filter on result file paths (e.g. ^src/ or \\.(go|ts)$)"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "compact",
+              "full",
+              "files"
+            ],
+            "default": "compact",
+            "description": "compact: signatures+metadata (default). full: with source. files: just file list."
+          },
+          "context": {
+            "type": "integer",
+            "description": "Lines of context around each match (like grep -C). Only used in compact mode."
+          },
+          "regex": {
+            "type": "boolean",
+            "default": false
+          },
+          "limit": {
+            "type": "integer",
+            "description": "Max enriched results per call. Default 10. Response includes 'total_grep_matches' and 'total_results' so callers can detect truncation. No offset parameter — raise limit or narrow with file_pattern / path_filter to see more.",
+            "default": 10
+          }
+        },
+        "required": [
+          "pattern",
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_task_begin",
+      "title": "Begin or replay a Codex task lifecycle",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Create an append-only task lifecycle from prompt metadata and an optional completed retrieval session in the shared global lifecycle store. Project is provenance, not a physical store boundary. Raw prompt content is never accepted or stored. Exact replay is zero-write and a different payload under the same idempotency key fails closed.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "session_id": {
+            "type": "string"
+          },
+          "turn_id": {
+            "type": "string"
+          },
+          "prompt_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "prompt_length": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "scope": {
+            "type": "string",
+            "const": "project"
+          },
+          "retrieval_session_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "workspace": {
+            "type": "string",
+            "description": "Optional cwd or rootUri used to resolve and catalog the project UUID."
+          }
+        },
+        "required": [
+          "project",
+          "session_id",
+          "turn_id",
+          "prompt_sha256",
+          "prompt_length",
+          "scope",
+          "idempotency_key"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "get_graph_schema",
+      "title": "Get graph schema",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Get the schema of the knowledge graph (node labels, edge types)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "get_architecture",
+      "title": "Get architecture",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Get high-level architecture overview — packages, services, dependencies, and project structure at a glance. Includes 'clusters': Leiden community detection over the call/import graph, surfacing the de-facto modules (each with a label, member count, cohesion score, representative top_nodes, and the packages/edge_types that bind it) — use these to grasp the real architectural seams, which often cut across the folder layout. Optional path scopes analysis to nodes under that directory prefix (file_path).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "path": {
+            "type": "string",
+            "description": "Optional directory prefix to scope architecture (e.g. apps/hoa)"
+          },
+          "aspects": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "all",
+                "overview",
+                "structure",
+                "dependencies",
+                "routes",
+                "languages",
+                "packages",
+                "entry_points",
+                "hotspots",
+                "boundaries",
+                "layers",
+                "file_tree",
+                "clusters"
+              ]
+            },
+            "description": "Aspects to include. 'all' = everything; 'overview' = compact summary (all except file_tree); omit = all."
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "list_projects",
+      "title": "List projects",
+      "description": "List indexed code projects. This is not the registered memory workspace catalog. Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. ",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "delete_project",
+      "title": "Delete project",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Delete a project from the index",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "index_status",
+      "title": "Index status",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Get the indexing status of a project",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "detect_changes",
+      "title": "Detect changes",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Detect code changes and their impact",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "scope": {
+            "type": "string"
+          },
+          "depth": {
+            "type": "integer",
+            "default": 2
+          },
+          "base_branch": {
+            "type": "string",
+            "default": "main"
+          },
+          "since": {
+            "type": "string",
+            "description": "Git ref or tag to compare from (e.g. HEAD~5, v0.5.0). Diffs <ref>...HEAD."
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manage_adr",
+      "title": "Manage ADR",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Create or update Architecture Decision Records",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "get",
+              "update",
+              "sections"
+            ]
+          },
+          "content": {
+            "type": "string"
+          },
+          "sections": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "ingest_traces",
+      "title": "Ingest traces",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Ingest runtime traces to enhance the knowledge graph",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "traces": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "caller": {
+                  "type": "string"
+                },
+                "callee": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          }
+        },
+        "required": [
+          "traces",
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "adr_list",
+      "title": "ADR list",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. List architectural decision records (ADRs) for a project. Structured table of contents for all decision-class memories with filters: project (required), kind, status, entity_key.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "decision",
+              "constraint",
+              "lesson"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "deprecated",
+              "archived",
+              "retracted"
+            ]
+          },
+          "entity_key": {
+            "type": "string"
+          },
+          "limit": {
+            "type": "integer",
+            "default": 50
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "adr_chain",
+      "title": "ADR chain",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Walk the supersedes chain of an ADR, showing the full version timeline. Returns items in version order with generation ordinal.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "item_id": {
+            "type": "string",
+            "description": "Start from this ID"
+          },
+          "entity_key": {
+            "type": "string",
+            "description": "Find root for this key"
+          },
+          "max_depth": {
+            "type": "integer",
+            "default": 50
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memories_inspect",
+      "title": "List memory items with entity_key, predicate, status for manual review",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. List memory items (no scoring, no decay-adjustment) for manual review — columns: id, kind, entity_key, predicate, layer, status, importance, hit_count. Use to audit what's in the store; use memories_retrieve for task-relevant ranked retrieval.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "status": {
+            "type": "string",
+            "description": "Filter by status: candidate,active,deprecated,archived"
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_update_status",
+      "title": "Mark a long-term memory item as active, candidate, deprecated, archived, or retracted",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Change the lifecycle status of one memory item by id. Transitions feed the supersede chain and decay history; an ADR with about_code anchors can be archived but never physically purged (see memory_delete purge vs the purge redline).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "candidate",
+              "active",
+              "deprecated",
+              "archived",
+              "retracted"
+            ]
+          }
+        },
+        "required": [
+          "project",
+          "id",
+          "status"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_concept_generate",
+      "title": "Evaluate or generate proposed concept candidates",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Apply the guarded additive Stage 10 schema, evaluate deterministic candidates, or generate proposed-only candidates. Off, shadow, and dry_run never write long-term Stage 10 state.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "store": {
+            "type": "string",
+            "const": "project-memory"
+          },
+          "operation": {
+            "type": "string",
+            "enum": [
+              "migrate",
+              "evaluate",
+              "generate"
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "off",
+              "shadow",
+              "dry_run",
+              "active"
+            ]
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "algorithm_version": {
+            "type": "string",
+            "const": "stage10-concept-growth-v1"
+          },
+          "policy_sha256": {
+            "type": "string",
+            "const": "38e32e2c0fbe224db8e6ca04fb1aff58b38cbc7255904b70563c3d48018746b4"
+          },
+          "policy_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "config_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "generator_version": {
+            "type": "string",
+            "const": "deterministic-local-v1"
+          },
+          "manifest_path": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "store",
+          "operation",
+          "mode",
+          "algorithm_version",
+          "policy_sha256",
+          "policy_version",
+          "config_version",
+          "generator_version"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_concept_review",
+      "title": "Review one proposed concept candidate",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Append an explicit edit, approval, rejection, or withdrawal. Production review requires content-level user confirmation and never runs automatically.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "store": {
+            "type": "string",
+            "const": "project-memory"
+          },
+          "candidate_id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "edit",
+              "reject",
+              "withdraw"
+            ]
+          },
+          "idempotency_key": {
+            "type": "string"
+          },
+          "content_text": {
+            "type": "string"
+          },
+          "related_candidate_id": {
+            "type": "string"
+          },
+          "explicit_user_confirmed": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "project",
+          "store",
+          "candidate_id",
+          "action",
+          "idempotency_key",
+          "explicit_user_confirmed"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_concept_inspect",
+      "title": "Inspect candidate provenance and append-only history",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Read one concept candidate, its versions, source count, review-derived state, node, and relation counts. Candidate text is explicitly marked as untrusted data.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "store": {
+            "type": "string",
+            "const": "project-memory"
+          },
+          "candidate_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "store",
+          "candidate_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_delete",
+      "title": "Soft-delete or restore a memory item; physical deletion is disabled",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Soft-delete or restore a memory item. Stage 9 hard-delete guards reject hard and purge for memory items, edges, events, and evidence.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "id": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "soft",
+              "restore"
+            ]
+          },
+          "user": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "admin_consolidate",
+      "title": "Run the deterministic memory consolidation pass for candidate items",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Run the deterministic consolidation pass over candidate memories for a project: merges near-duplicate candidates, recomputes scores from graph signals. Returns how many were processed. Idempotent; safe to run periodically.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "admin_decay",
+      "title": "Run explainable decay and archive stale active memories",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Run the decay pass: lowers retrieval scores of active memories by age and hit_count, archives stale ones into candidate/deprecated. Returns how many were processed. Idempotent; safe to run periodically.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "limit": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_health",
+      "title": "Report long-term memory MVP health counters",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Report health counters for a project's memory store: total items by status, by kind, decay distribution, anchor coverage, FTS index status. Use to gauge store quality before and after consolidation/decay passes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          }
+        },
+        "required": [
+          "project"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "describe_tool",
+      "title": "Return the full usage guide for one tool",
+      "description": "Return the full usage guide (complete description + parameter docs) for one of this server's tools. The tools/list payload is kept slim to save context; call this when you need the detailed guidance for a specific tool before using it.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Exact tool name, e.g. query_graph, search_graph, trace_path"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_security_check",
+      "title": "Classify untrusted memory content without writing",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Run the local deterministic Stage 11 security scanner as a read-only dry run. Returns only policy metadata, category, action, stable reason codes, SHA256 and byte length; the input is never echoed or persisted.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "store": {
+            "type": "string",
+            "const": "project-memory"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1048576
+          }
+        },
+        "required": [
+          "project",
+          "store",
+          "content"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_task_migrate",
+      "title": "Apply the guarded additive Stage 12 task schema",
+      "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Apply or replay the checksum-locked additive task lifecycle schema. The tool is disabled unless the fixed production canary or an isolated Stage 12 fixture guard matches exactly.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "project": {
+            "type": "string",
+            "description": "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) or memory_resolve_project(task_id=<active task id>), then use its project_uuid. scope='global' still requires this registered audit anchor. Do not invent a project name or use a remote host label. list_projects lists code indexes, not memory workspaces. Use the returned project_uuid string."
+          },
+          "manifest_path": {
+            "type": "string"
+          },
+          "manifest_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "idempotency_key": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "manifest_path",
+          "manifest_sha256",
+          "idempotency_key"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manager_global_overview",
+      "title": "Read global memory overview",
+      "description": "Read-only All Projects summary.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manager_global_memory",
+      "title": "List global memories",
+      "description": "Read-only paginated global memory list with provenance.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
         }
       },
-      "additionalProperties": false
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manager_global_topology",
+      "title": "List cross-project topology",
+      "description": "Read-only cross-project edge list with provenance.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manager_evolution",
+      "title": "List evolution events",
+      "description": "Read-only evidence-graded evolution timeline.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cursor": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 200
+          }
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manager_task_chain",
+      "title": "Inspect one task chain",
+      "description": "Read-only task to evidence and attribution chain.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "task_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "task_id"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manager_drift_preview",
+      "title": "Read drift preview",
+      "description": "Read-only managed drift summary; third-party config bodies are excluded.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manager_maintenance_preview",
+      "title": "Read maintenance preview",
+      "description": "Read-only lease and eligibility preview.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "manager_maintenance_control",
+      "title": "Control guarded maintenance",
+      "description": "Preserves isolated mock compatibility. Production preview is read-only and needs only the bounded request. Production run/resume requires authorization, edge, and concept manifest bindings. Production pause fails closed until a core audit API exists.",
+      "inputSchema": {
+        "type": "object",
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "pause",
+                  "resume",
+                  "dry_run"
+                ]
+              },
+              "scope": {
+                "type": "string",
+                "const": "isolated_mock"
+              }
+            },
+            "required": [
+              "action",
+              "scope"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string",
+                "const": "preview"
+              },
+              "scope": {
+                "type": "string",
+                "const": "production"
+              },
+              "mode": {
+                "type": "string",
+                "const": "bounded_canary"
+              },
+              "project": {
+                "type": "string",
+                "minLength": 1
+              },
+              "owner_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "run_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "idempotency_key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "frozen_as_of_ms": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "budget_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30
+              }
+            },
+            "required": [
+              "action",
+              "scope",
+              "mode",
+              "project",
+              "owner_id",
+              "run_id",
+              "idempotency_key",
+              "frozen_as_of_ms",
+              "limit",
+              "budget_seconds"
+            ]
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "action": {
+                "type": "string",
+                "enum": [
+                  "run",
+                  "resume",
+                  "pause"
+                ]
+              },
+              "scope": {
+                "type": "string",
+                "const": "production"
+              },
+              "mode": {
+                "type": "string",
+                "const": "bounded_canary"
+              },
+              "project": {
+                "type": "string",
+                "minLength": 1
+              },
+              "owner_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "run_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "idempotency_key": {
+                "type": "string",
+                "minLength": 1
+              },
+              "frozen_as_of_ms": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000
+              },
+              "budget_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 30
+              },
+              "edge_manifest_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "edge_manifest_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "concept_manifest_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "concept_manifest_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "authorization_manifest_path": {
+                "type": "string",
+                "minLength": 1
+              },
+              "authorization_manifest_sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            },
+            "required": [
+              "action",
+              "scope",
+              "mode",
+              "project",
+              "owner_id",
+              "run_id",
+              "idempotency_key",
+              "frozen_as_of_ms",
+              "limit",
+              "budget_seconds",
+              "edge_manifest_path",
+              "edge_manifest_sha256",
+              "concept_manifest_path",
+              "concept_manifest_sha256",
+              "authorization_manifest_path",
+              "authorization_manifest_sha256"
+            ]
+          }
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    {
+      "name": "memory_resolve_project",
+      "description": "Read-only resolution of a registered Semantic Memory workspace or task to its project UUID. Does not index code, create a workspace, or write memory. Supply exactly one of workspace (actual absolute cwd), task_id (active task), or project (known UUID/legacy path name).",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "workspace": {
+            "type": "string",
+            "description": "Actual absolute workspace directory; never guess a host name."
+          },
+          "task_id": {
+            "type": "string",
+            "description": "Existing task id provided by the active lifecycle hook."
+          },
+          "project": {
+            "type": "string",
+            "description": "Existing UUID or registered path-derived legacy project name."
+          }
+        },
+        "additionalProperties": false
+      }
     }
-  }
+  ]
 }

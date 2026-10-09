@@ -98,13 +98,16 @@ class BundleTests(unittest.TestCase):
                     'summary':'Isolated off-mode compatibility check','content':'Synthetic fixture','evidence_grade':'C'})
                 self.assertEqual(off['reason'],'CAPABILITY_OFF');self.assertFalse(off['wrote'])
                 _,learning=c.tool('memory_learning_status',{'project':project['project_uuid']})
-                self.assertTrue(learning['enabled']);self.assertTrue(learning['ready'])
+                self.assertTrue(learning['enabled'])
             r,item=c.tool('events',{'project':project['project_uuid'],'scope':'global','kind':'lesson','summary':'Synthetic isolated release acceptance '+label+'.','content':'2026-10-09 isolated fixture validates packaged project identity and native capture.','source':'isolated-release-fixture','importance':0.7,'payload':{}})
             self.assertFalse(r.get('isError'));self.assertEqual(item['status'],'accepted')
             _,done=c.tool('memory_task_complete',{'project':project['project_uuid'],'task_id':task['task_id'],'outcome':'completed','attributions':[],'idempotency_key':label+'-complete'})
             self.assertEqual(done['status'],'recorded')
             _,status=c.tool('memory_task_status',{'project':project['project_uuid'],'task_id':task['task_id']})
             self.assertEqual(status['state'],'completed')
+            if self.release.get('legacy_compatibility_runtime'):
+                _,learning=c.tool('memory_learning_status',{'project':project['project_uuid']})
+                self.assertTrue(learning['ready'])
             return item['item_id']
         finally:c.close()
 
@@ -168,6 +171,10 @@ class BundleTests(unittest.TestCase):
         if self.previous is None:self.skipTest('Set SEMANTIC_MEMORY_TEST_PREVIOUS_ARCHIVE for previous release upgrade.')
         user,codex,runtime,before=self.profile('upgrade')
         self.ps(self.previous,'Install-Bundle.ps1',user,codex,runtime)
+        if (runtime/'codex-memory-repair-state.json').exists():
+            guarded=self.ps(self.package,'Install-Bundle.ps1',user,codex,runtime,success=False)
+            self.assertIn('PERSISTENT_REPAIR_ACTIVE',guarded.stderr)
+            self.ps(self.previous,'Repair-Codex-Memory.ps1',user,codex,runtime,'-Mode','Rollback')
         prior_config=(codex/'config.toml').read_bytes()
         prior_pointer=(runtime/'state/current.json').read_bytes()
         sentinel=runtime/'data/fixture-preserved.txt';sentinel.write_text('retained',encoding='utf-8')

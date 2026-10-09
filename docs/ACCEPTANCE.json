@@ -1,207 +1,59 @@
 {
-  "schema": "semantic-memory-public-acceptance/v2",
+  "schema": "semantic-memory-public-acceptance/v3",
   "date": "2026-10-09",
-  "release_version": "1.1.0-rc.1+codex.20261009131000",
-  "installer_revision": "R6",
-  "source_machine": "Windows 10 19045 x64",
-  "core_revision": "global-scope-local-r2",
-  "verified_core_sha256": "95c13aa9dc4219923b96a5d3454256c6ecbb173556c23939c570642e99e88f80",
+  "release_version": "1.1.0-rc.1+codex.20261009152000",
+  "installer_revision": "R7",
+  "source_machine": "Windows 10 19045 x64; GitHub hosted Windows runner",
+  "core_revision": "verified-learning-r7",
   "current_release_tests": {
     "status": "PASS",
     "source_unit_tests_passed": 20,
     "packaged_test_groups_passed": 5,
-    "source_scope": "synthetic config/MMCAPI sources and fresh native fixture data; Python 3.12; no publisher production data",
-    "packaged_scope": "ZIP extracted into Chinese and space-containing paths; synthetic Windows user/config; ASCII runtime root with spaces; Windows PowerShell 5.1 builtin module path",
+    "source_scope": "synthetic config/MMCAPI sources; no publisher production data",
+    "packaged_scope": "synthetic Windows user/config/data, Chinese extraction and workspace, ASCII runtime root with spaces, PowerShell 5.1",
+    "native_learning_scope": "synthetic memory/task input, actual executed Python process, real native MCP and Hook entrypoints, task completion and subsequent ranking",
+    "native_c_tests": {
+      "memory": 92,
+      "orchestrator": 3,
+      "global": 19,
+      "verified_learning_integration": "PASS"
+    },
+    "frontend_tests_passed": 11,
+    "native_hook_evidence": {
+      "schema": "verified-learning-native-evidence/v1",
+      "runtime_sha256": "f70181ce4b102837c4110567b98c1afd483d582c98109bb70c38185ba0632459",
+      "tool_count": 50,
+      "real_process_hook_evidence": true,
+      "scope_guard": true,
+      "pause_resume": true,
+      "synthetic_data": true,
+      "live_codex_upgraded": false,
+      "ranking_before": 1.000001,
+      "ranking_after": 1.048228,
+      "verified_credit": 1
+    },
+    "previous_r6_archive_sha256": "c95da3e18f1ec9b12ebc402448095b7854e5f14e1ceaae6d4fac411edde4bb53",
     "cases": [
-      "complete archive SHA256/size/plugin version/private-file exclusion",
-      "fresh one-click install, repeat zero-write repair, real MCP global capture and completed lifecycle, persistent rollback, uninstall and memory retention",
-      "Python dependency and non-ASCII runtime root rejected before writes",
-      "active adapter prevents native upgrade/uninstall until rollback; same-version entry re-enables rolled-back adapter",
-      "verified original R5 asset install to R6 upgrade; corrupted plugin failure restores prior runtime/config; successful upgrade rollback restores R5 and retains newly written memory"
+      "SHA256 manifest, version and private-file exclusion",
+      "fresh install, replay, real MCP global capture/lifecycle and learning initialization",
+      "all 55 unique tools and legacy CAPABILITY_OFF zero writes",
+      "R6 upgrade guard, persistent rollback, upgrade and corrupted-plugin failure recovery",
+      "runtime rollback/uninstall restores prior config and retains new memory",
+      "Python and non-ASCII root rejected before writes"
     ],
-    "previous_r5_archive_sha256": "64363ad20566412e247fff8227f57bff2138c04708402b0c04625855cc110218",
-    "original_r5_archive_modified": false,
-    "mcp_protocol": "initialize and all tools/list pages; more than 40 tools, exactly one memory_resolve_project",
-    "unittest_diagnostics": "Corrected the acceptance harness to expect task_complete status=recorded and confirm task_status state=completed. The packaged runtime did not require a lifecycle change."
+    "harness_correction": "ready is checked after first completed lifecycle; status is read-only and a pristine database is initialized lazily"
   },
-  "full_core_rebuild": false,
-  "target_machine_codex_restart_and_trust": "pending",
-  "target_machine_ui": "pending; GUI payload unchanged from R5",
+  "full_core_rebuild": true,
+  "legacy_component_source_rebuilt": false,
+  "legacy_tools": 4,
+  "target_machine_codex_restart_and_trust": "pending; current session R6",
+  "target_machine_ui": "pending; unauthenticated IAB shell inspected, Chrome automation unavailable; authenticated GUI/DPI not passed",
   "signature_added": false,
-  "non_ascii_runtime_root": "unsupported; installer preflight refuses before writes",
-  "prior_r5_evidence_not_rerun": {
-    "schema": "semantic-memory-public-acceptance/v1",
-    "date": "2026-10-05",
-    "source_machine": "Windows 10 19045 x64",
-    "core_revision": "global-scope-local-r2",
-    "verified_core_sha256": "95c13aa9dc4219923b96a5d3454256c6ecbb173556c23939c570642e99e88f80",
-    "current_desktop": {
-      "tool_count": 19,
-      "global_event_accepted": true,
-      "same_item_recalled_from_two_workspaces": true,
-      "feedback_exact_replay_no_duplicate": true,
-      "task_completed": true,
-      "memory_quick_check": "ok",
-      "graph_quick_check": "ok"
-    },
-    "prior_focused_checks": {
-      "core_functional": 21,
-      "rollback": 6,
-      "cmd_entry": 10
-    },
-    "public_bundle_tests": {
-      "pass": true,
-      "cases": [
-        {
-          "case": "fresh complete bundle install",
-          "pass": true
-        },
-        {
-          "case": "unrelated configuration preserved",
-          "pass": true
-        },
-        {
-          "case": "same version entry repairs without runtime reinstall",
-          "pass": true
-        },
-        {
-          "case": "native 19 tool handshake",
-          "pass": true
-        },
-        {
-          "case": "fresh installed core global events",
-          "pass": true
-        },
-        {
-          "case": "fresh installed core cross-workspace recall",
-          "pass": true
-        },
-        {
-          "case": "existing bundle version routes through upgrade transaction",
-          "pass": true
-        },
-        {
-          "case": "upgrade retained fixture knowledge",
-          "pass": true
-        }
-      ],
-      "scope": "isolated Windows installation with Chinese user/plugin/workspace paths and ASCII runtime root"
-    },
-    "full_core_rebuild": false,
-    "target_machine_ui": "pending",
-    "signature_added": false,
-    "non_ascii_runtime_root": "unsupported; installer preflight refuses before writes",
-    "r4_to_r5_upgrade_tests": {
-      "pass": true,
-      "cases": [
-        {
-          "case": "original R4 native install",
-          "pass": true
-        },
-        {
-          "case": "original native baseline",
-          "pass": true
-        },
-        {
-          "case": "corrupted plugin package upgrade rejected",
-          "pass": true
-        },
-        {
-          "case": "failed composite upgrade restores R4 core",
-          "pass": true
-        },
-        {
-          "case": "failed composite upgrade preserves unrelated config",
-          "pass": true
-        },
-        {
-          "case": "actual R4 to R5 complete upgrade",
-          "pass": true
-        },
-        {
-          "case": "upgraded native core SHA256",
-          "pass": true
-        },
-        {
-          "case": "upgraded task lifecycle",
-          "pass": true
-        },
-        {
-          "case": "upgraded global event accepted",
-          "pass": true
-        }
-      ],
-      "scope": "isolated Windows user/config/data; ASCII runtime root"
-    },
-    "bundle_uninstall_tests": {
-      "pass": true,
-      "cases": [
-        {
-          "case": "R5 upgrade uninstall succeeds",
-          "pass": true
-        },
-        {
-          "case": "upgrade uninstall restores original R4 runtime",
-          "pass": true
-        },
-        {
-          "case": "upgrade uninstall restores prior configuration",
-          "pass": true
-        },
-        {
-          "case": "upgrade uninstall retains memory database",
-          "pass": true
-        },
-        {
-          "case": "last upgrade rollback succeeds",
-          "pass": true
-        },
-        {
-          "case": "prior bundle state restored",
-          "pass": true
-        },
-        {
-          "case": "fresh installation uninstall succeeds",
-          "pass": true
-        },
-        {
-          "case": "fresh uninstall retains valid knowledge",
-          "pass": true
-        },
-        {
-          "case": "fresh uninstall restores unrelated MCP config",
-          "pass": true
-        }
-      ],
-      "scope": "isolated Windows user/config/data; ASCII runtime root"
-    },
-    "final_packaging_change": "Documentation and sanitized acceptance summary only; tested installer and native payload unchanged.",
-    "custom_root_hook_tests": {
-      "pass": true,
-      "cases": [
-        {
-          "case": "custom ASCII root fixture install",
-          "pass": true
-        },
-        {
-          "case": "custom root plugin recall hook exits successfully",
-          "pass": true
-        },
-        {
-          "case": "hook lifecycle stored in selected runtime data root",
-          "pass": true
-        },
-        {
-          "case": "selected runtime database integrity",
-          "pass": true
-        },
-        {
-          "case": "no fallback runtime created in Chinese LocalAppData",
-          "pass": true
-        }
-      ],
-      "scope": "isolated Windows user/config/data; ASCII runtime root"
-    }
-  },
-  "final_packaging_change": "Acceptance record and release documentation only; packaging scripts and native payload identical to the tested candidate."
+  "non_ascii_runtime_root": "unsupported; preflight refuses",
+  "long_term_task_quality_improvement": "not yet measured",
+  "physical_delete": false,
+  "verified_core_sha256": "f70181ce4b102837c4110567b98c1afd483d582c98109bb70c38185ba0632459",
+  "source_build_commit": "7123785cc30a377aedc97a38d3ef8e7e074decb8",
+  "source_build_run": "https://github.com/AlbertYm/semantic-memory-global/actions/runs/37904309932",
+  "final_packaging_change": "Documentation and completed acceptance record only; tested native payload and installation code unchanged. Final archive manifest/integrity verified separately."
 }
