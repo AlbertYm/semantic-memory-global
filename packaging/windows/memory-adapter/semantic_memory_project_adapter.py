@@ -18,8 +18,15 @@ LEGACY_TOOLS = {"neuroplastic_capture", "neuroplastic_evolution", "neuroplastic_
 
 def legacy_inventory(core):
     payload=core.parent
+    if payload.name.casefold()=="bin":
+        pointer=json.loads((payload.parent/"state/current.json").read_text(encoding="utf-8-sig"))
+        version=pointer.get("version_id","")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._+-]*",version):
+            raise ValueError("Invalid managed compatibility version")
+        payload=payload.parent/"app/versions"/version
     binary=payload/"semantic-memory-v21-compat.exe"
-    schema=Path(__file__).with_name("legacy-v21-tools.json")
+    schema=payload/"legacy-v21-tools.json"
+    if not schema.is_file():schema=Path(__file__).with_name("legacy-v21-tools.json")
     if not binary.is_file() or not schema.is_file():return [],None
     tools=json.loads(schema.read_text(encoding="utf-8"))
     if {tool["name"] for tool in tools} != LEGACY_TOOLS:raise ValueError("Invalid compatibility inventory")

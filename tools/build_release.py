@@ -23,6 +23,7 @@ def build(runtime,out,legacy=None):
         expected=release['legacy_compatibility_runtime']['sha256']
         if legacy is None or sha(legacy)!=expected:raise ValueError('Verified legacy compatibility runtime required')
         shutil.copyfile(legacy,payload/'semantic-memory-v21-compat.exe')
+        shutil.copyfile(ROOT/'packaging/windows/memory-adapter/legacy-v21-tools.json',payload/'legacy-v21-tools.json')
     server={'name':'io.github.AlbertYm/semantic-memory-global','version':release['runtime_version'],'description':'Auditable local memory across Codex workspaces','repository':{'url':release['repository'],'source':'github'},'packages':[]}
     write_json(payload/'server.json',server)
     write_json(payload/'payload-manifest.json',{'schema':'stage14-payload-manifest/v1','version':release['runtime_version'],'version_id':release['runtime_version_id'],'entrypoints':names,'files':[{'path':p.name,'bytes':p.stat().st_size,'sha256':sha(p)} for p in sorted(payload.iterdir())]})
