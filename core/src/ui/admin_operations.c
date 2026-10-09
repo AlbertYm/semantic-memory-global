@@ -174,6 +174,22 @@ static bool admin_paths(const char *project, admin_store_path_t stores[3]) {
     return true;
 }
 
+/* Only read views follow the registered global catalog. Backup/restore retain their existing paths. */
+static void admin_registered_memory(const char *project,admin_store_path_t stores[3]) {
+    char cache[ADMIN_PATH_CAP],path[ADMIN_PATH_CAP];
+    const char *root=admin_resolve_cache(cache);
+    if(!root)return;
+    snprintf(path,sizeof(path),"%s/__global__-memory.db",root);
+    sqlite3 *db=NULL;sqlite3_stmt *stmt=NULL;bool registered=false;
+    if(sqlite3_open_v2(path,&db,SQLITE_OPEN_READONLY,NULL)==SQLITE_OK &&
+       sqlite3_prepare_v2(db,"SELECT 1 FROM global_project_catalog WHERE project_uuid=?1",-1,&stmt,NULL)==SQLITE_OK){
+        sqlite3_bind_text(stmt,1,project,-1,SQLITE_TRANSIENT);registered=sqlite3_step(stmt)==SQLITE_ROW;
+    }
+    sqlite3_finalize(stmt);sqlite3_close(db);
+    if(registered){snprintf(stores[1].path,sizeof(stores[1].path),"%s",path);
+        snprintf(stores[1].filename,sizeof(stores[1].filename),"__global__-memory.db");}
+}
+
 static void admin_add_sources(yyjson_mut_doc *doc, yyjson_mut_val *candidate, sqlite3 *db,
                               const char *candidate_id) {
     yyjson_mut_val *sources = yyjson_mut_arr(doc);
@@ -474,6 +490,7 @@ char *cbm_admin_tasks_json(const char *project, int limit) {
     admin_store_path_t stores[3] = {0};
     if (!admin_paths(project, stores))
         return admin_error("INVALID_PROJECT");
+    admin_registered_memory(project,stores);
     if (limit < 1)
         limit = 25;
     if (limit > 100)

@@ -19,6 +19,7 @@
 #include "ui/embedded_assets.h"
 #include "ui/layout3d.h"
 #include "mcp/mcp.h"
+#include "memory/verified_learning.h"
 #include "store/store.h"
 #include "watcher/watcher.h"
 #include "cli/cli.h"
@@ -1745,6 +1746,21 @@ static void dispatch_request(cbm_http_server_t *srv, cbm_http_conn_t *c,
     if (srv->manager_mode && is_get &&
         cbm_http_path_match(req->path, "/api/manager/tasks*")) {
         if (manager_authorize(srv, c, req, false)) manager_handle_get(c, req, true);
+        return;
+    }
+    if (srv->manager_mode && is_post &&
+        cbm_http_path_match(req->path, "/api/manager/learning-confirmation")) {
+        if (!manager_authorize(srv,c,req,true)) return;
+        yyjson_doc *doc=req->body ? yyjson_read(req->body,req->body_len,0):NULL;
+        yyjson_val *root=doc ? yyjson_doc_get_root(doc):NULL;
+        const char *project=root ? yyjson_get_str(yyjson_obj_get(root,"project")):NULL;
+        const char *evidence=root ? yyjson_get_str(yyjson_obj_get(root,"evidence_id")):NULL;
+        const char *hash=root ? yyjson_get_str(yyjson_obj_get(root,"result_hash")):NULL;
+        cbm_store_t *store=resolve_global_memory_store(srv->mcp,true);
+        int rc=store ? cbm_learning_confirm_user(store,project,evidence,hash):CBM_STORE_REJECTED;
+        yyjson_doc_free(doc);
+        manager_reply(c,(rc==CBM_STORE_OK || rc==CBM_STORE_REPLAYED) ? 200:409,
+                      (rc==CBM_STORE_OK || rc==CBM_STORE_REPLAYED) ? "CONFIRMED":"CONFIRMATION_CONFLICT");
         return;
     }
     if (srv->manager_mode && is_post &&

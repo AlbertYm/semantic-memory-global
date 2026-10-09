@@ -74,6 +74,7 @@ typedef struct {
     const char *evidence_json;
     const char *retrieval_source;
     double retrieval_score;
+    double learning_adjustment;
 } cbm_memory_item_t;
 
 /* ── Stage 6 request-scoped graph activation ──────────────────────── */

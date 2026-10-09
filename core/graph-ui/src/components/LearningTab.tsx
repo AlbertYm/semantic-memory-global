@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { Pause, Play, RefreshCw, RotateCcw } from "lucide-react";
-import { callTool } from "../api/rpc";
+import { managerFetch, callTool } from "../api/rpc";
 
 interface LearningState {
   enabled: boolean; ready: boolean; generation: number; last_code: number;
   batch_limit: number; pair_batch_limit: number;
   items: { item_id: string; positive: number; negative: number; utility: number; decay: number; status: string; restorable: boolean }[];
+  pending_user_confirmations?: { evidence_id: string; result_hash: string; evidence_ref: string; result_ref: string; memory_summary: string }[];
   associations: { src_id: string; dst_id: string; success_count: number }[];
 }
 
@@ -32,6 +33,18 @@ export function LearningTab({ project }: { project: string }) {
     } catch (value) { setError(value instanceof Error ? value.message : "操作失败"); }
     finally { setBusy(false); }
   }
+  async function confirm(evidence_id: string, result_hash: string) {
+    setBusy(true);
+    try {
+      const response = await managerFetch("/api/manager/learning-confirmation", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project, evidence_id, result_hash }),
+      });
+      if (!response.ok) throw new Error("Confirmation conflict");
+      await refresh();
+    } catch (value) { setError(value instanceof Error ? value.message : "Confirmation failed"); }
+    finally { setBusy(false); }
+  }
   return <div className="workspace-scroll">
     <section className="toolbar-band"><h2>自动学习</h2>
       <span>{data ? (data.ready ? (data.enabled ? "运行中" : "已暂停") : "等待首次学习批次") : "读取中"}</span>
@@ -55,6 +68,10 @@ export function LearningTab({ project }: { project: string }) {
         </div>)}
       </div>{data && !data.items.length && <p>尚无学习记录。可核验的使用证据产生后会显示在这里。</p>}
     </section>
+    {!!data?.pending_user_confirmations?.length && <section className="section-block"><h2>待用户确认的证据</h2>
+      <p>仅当你确认对应结果真实有效时点击。模型填写 explicit_user 本身不会增加信用。</p>
+      {data.pending_user_confirmations.map(entry => <p key={entry.evidence_id}><span>{entry.memory_summary}</span> <span>{entry.result_ref} / {entry.evidence_ref}</span> <button disabled={busy} onClick={() => void confirm(entry.evidence_id,entry.result_hash)}>我确认此结果</button></p>)}
+    </section>}
     <section className="section-block"><h2>共同使用关联</h2>{data?.associations.map(edge => <p className="mono" key={`${edge.src_id}:${edge.dst_id}`}>{edge.src_id} ↔ {edge.dst_id} · {edge.success_count} 个有效任务</p>)}
       {data && !data.associations.length && <p>尚无经过有效任务确认的共同使用关联。</p>}
     </section>

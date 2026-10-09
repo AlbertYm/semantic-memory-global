@@ -128,6 +128,16 @@ static int test_learning(void){
     CHECK(run(db,"DELETE FROM verified_learning_audit")!=SQLITE_OK);
     report=cbm_learning_status(store,"other-project");CHECK(report && !strstr(report,"b-helpful"));free(report);
     CHECK(scalar(db,"SELECT COUNT(*) FROM memory_item WHERE deleted_at IS NOT NULL")==0);
+    /* An append-only withdrawal compensates both utility and co-use association. */
+    CHECK(run(db,"INSERT INTO feedback_event SELECT 'withdraw-helpful',task_id,session_id,candidate_id,"
+        "injection_id,usage_id,result_id,evidence_id,'withdraw',processing_mode,canonical_payload_sha256,"
+        "payload_json,result_json,event_id,algorithm_version,config_version,received_at FROM feedback_event "
+        "WHERE task_id=(SELECT task_id FROM codex_task_lifecycle WHERE idempotency_key='complete-4') "
+        "AND candidate_id='candidate-4-0'")==SQLITE_OK);
+    CHECK(cbm_learning_refresh(store,now+192*DAY)==CBM_STORE_OK);
+    CHECK(scalar(db,"SELECT positive FROM verified_learning_state WHERE item_id='b-helpful'")==0);
+    CHECK(scalar(db,"SELECT success_count FROM verified_learning_association WHERE src_id='b-helpful' AND dst_id='c-peer'")==0);
+    CHECK(scalar(db,"SELECT decay=0 FROM verified_learning_state WHERE item_id='d-protected'")==1);
     cbm_store_close(store);return 0;
 }
 int main(void){

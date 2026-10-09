@@ -35,6 +35,9 @@ static int learning_schema(sqlite3 *db) {
         "CREATE TABLE IF NOT EXISTS verified_learning_receipt("
         "evidence_id TEXT PRIMARY KEY,result_hash TEXT NOT NULL,outcome INTEGER NOT NULL "
         "CHECK(outcome IN (0,1)));"
+        "CREATE TABLE IF NOT EXISTS verified_learning_user_receipt("
+        "evidence_id TEXT PRIMARY KEY,result_hash TEXT NOT NULL);"
+        "CREATE INDEX IF NOT EXISTS verified_learning_feedback_task ON feedback_event(task_id,candidate_id);"
         "CREATE TABLE IF NOT EXISTS verified_learning_state("
         "item_id TEXT PRIMARY KEY,positive INTEGER NOT NULL,negative INTEGER NOT NULL,"
         "last_verified_ms INTEGER NOT NULL,utility REAL NOT NULL,decay REAL NOT NULL,"
@@ -73,11 +76,19 @@ static int learning_schema(sqlite3 *db) {
         "p WHERE p.evidence_id=e.evidence_id AND p.result_hash=r.result_hash "
         "AND ((p.outcome=0 AND r.status='succeeded') OR (p.outcome=1 AND r.status='failed')))) "
         "OR (e.trust_class='explicit_user' AND e.source_type='user' "
-        "AND r.result_type='user_confirmation')) "
+        "AND r.result_type='user_confirmation' AND EXISTS(SELECT 1 FROM verified_learning_user_receipt "
+        "p WHERE p.evidence_id=e.evidence_id AND p.result_hash=r.result_hash))) "
         "AND EXISTS(SELECT 1 FROM codex_task_lifecycle l WHERE l.task_id=t.task_id "
         "AND l.state='completed' AND l.outcome='completed') "
         "AND f.rowid=(SELECT MAX(x.rowid) FROM feedback_event x JOIN retrieval_candidate xc "
-        "ON xc.id=x.candidate_id WHERE x.task_id=f.task_id AND xc.memory_item_id=c.memory_item_id);"
+        "ON xc.id=x.candidate_id JOIN memory_evidence xe ON xe.evidence_id=x.evidence_id "
+        "JOIN memory_task_result xr ON xr.result_id=x.result_id "
+        "WHERE x.task_id=f.task_id AND xc.memory_item_id=c.memory_item_id AND "
+        "((xe.trust_class='external_verified' AND EXISTS(SELECT 1 FROM verified_learning_receipt xp "
+        "WHERE xp.evidence_id=xe.evidence_id AND xp.result_hash=xr.result_hash)) OR "
+        "(xe.trust_class='explicit_user' AND xe.source_type='user' AND xr.result_type='user_confirmation' "
+        "AND EXISTS(SELECT 1 FROM verified_learning_user_receipt xp WHERE xp.evidence_id=xe.evidence_id "
+        "AND xp.result_hash=xr.result_hash))));"
     );
 }
 
@@ -209,6 +220,8 @@ static int refresh_item(sqlite3 *db,const char *id,int64_t now) {
     if(touched<created)touched=created;
     double days=(double)(now-touched)/(double)LEARNING_DAY_MS;
     double decay=fmin(0.12,fmax(0.0,days-30.0)/150.0*0.12);
+    if(importance>=0.8 || !strcmp(kind,"preference") || !strcmp(kind,"constraint") ||
+       !strcmp(kind,"decision"))decay=0;
     double utility=0.15*tanh((double)(pos-neg)/3.0)*exp(-fmax(0.0,days-30.0)/180.0);
     char before[128],after[128];
     snprintf(before,sizeof(before),"{\"positive\":%d,\"negative\":%d,\"utility\":%.6f,\"decay\":%.6f}",
@@ -369,12 +382,14 @@ void cbm_learning_rank(cbm_store_t *store,cbm_memory_result_t *result) {
     if(!db || !result || !learning_enabled() ||
         !scalar(db,"SELECT enabled FROM verified_learning_control WHERE id=1",0))return;
     for(int i=0;i<result->count;i++){
+        result->items[i].retrieval_score-=result->items[i].learning_adjustment;
+        double adjustment=0;
         sqlite3_stmt *stmt=NULL;
         if(sqlite3_prepare_v2(db,"SELECT utility,decay FROM verified_learning_state WHERE item_id=?1",
             -1,&stmt,NULL)!=SQLITE_OK)return;
         sqlite3_bind_text(stmt,1,result->items[i].id,-1,SQLITE_TRANSIENT);
         if(sqlite3_step(stmt)==SQLITE_ROW)
-            result->items[i].retrieval_score+=sqlite3_column_double(stmt,0)-sqlite3_column_double(stmt,1);
+            adjustment=sqlite3_column_double(stmt,0)-sqlite3_column_double(stmt,1);
         sqlite3_finalize(stmt);
         /* Associations can boost only an already relevant result; they cannot inject an
          * unrelated/private memory or override normal scope and safety filtering. */
@@ -388,7 +403,8 @@ void cbm_learning_rank(cbm_store_t *store,cbm_memory_result_t *result) {
             if(sqlite3_step(stmt)==SQLITE_ROW)boost=fmax(boost,fmin(0.03,0.01*sqlite3_column_int(stmt,0)));
             sqlite3_finalize(stmt);
         }
-        result->items[i].retrieval_score+=boost;
+        result->items[i].learning_adjustment=adjustment+boost;
+        result->items[i].retrieval_score+=adjustment+boost;
     }
     for(int i=1;i<result->count;i++){
         cbm_memory_item_t item=result->items[i];int j=i-1;
@@ -415,7 +431,7 @@ char *cbm_learning_status(cbm_store_t *store,const char *project) {
     yyjson_mut_obj_add_int(doc,root,"sql_vm_budget",2000000);
     yyjson_mut_obj_add_int(doc,root,"batch_limit",LEARNING_BATCH);
     yyjson_mut_obj_add_bool(doc,root,"physical_delete",false);
-    yyjson_mut_obj_add_str(doc,root,"evidence_gate","hook_receipt_or_explicit_user_confirmation");
+    yyjson_mut_obj_add_str(doc,root,"evidence_gate","hook_receipt_or_native_manager_user_confirmation");
     yyjson_mut_val *items=yyjson_mut_arr(doc),*edges=yyjson_mut_arr(doc);sqlite3_stmt *stmt=NULL;
     if(sqlite3_prepare_v2(db,"SELECT s.item_id,s.positive,s.negative,s.utility,s.decay,"
         "CASE WHEN m.status='archived' AND m.version=s.archived_version THEN s.archived_version END,m.status FROM verified_learning_state s JOIN memory_item m ON m.id=s.item_id "
@@ -444,7 +460,61 @@ char *cbm_learning_status(cbm_store_t *store,const char *project) {
             yyjson_mut_arr_append(edges,edge);}
     }sqlite3_finalize(stmt);
     yyjson_mut_obj_add_val(doc,root,"items",items);yyjson_mut_obj_add_val(doc,root,"associations",edges);
+    yyjson_mut_val *pending=yyjson_mut_arr(doc);stmt=NULL;
+    if(sqlite3_prepare_v2(db,"SELECT e.evidence_id,r.result_hash,e.evidence_ref,r.result_ref,"
+        "SUBSTR(COALESCE(GROUP_CONCAT(DISTINCT m.summary),''),1,1024) FROM memory_evidence e "
+        "JOIN memory_task t ON t.task_id=e.task_id JOIN memory_task_result r ON r.result_id=e.result_id "
+        "JOIN feedback_event f ON f.evidence_id=e.evidence_id JOIN retrieval_candidate c ON c.id=f.candidate_id "
+        "JOIN memory_item m ON m.id=c.memory_item_id "
+        "WHERE t.project=?1 AND e.trust_class='explicit_user' AND e.source_type='user' "
+        "AND e.evidence_state='valid' AND r.result_type='user_confirmation' AND NOT EXISTS("
+        "SELECT 1 FROM verified_learning_user_receipt p WHERE p.evidence_id=e.evidence_id) GROUP BY e.evidence_id LIMIT 50",
+        -1,&stmt,NULL)==SQLITE_OK){
+        sqlite3_bind_text(stmt,1,project,-1,SQLITE_TRANSIENT);
+        while(sqlite3_step(stmt)==SQLITE_ROW){yyjson_mut_val *entry=yyjson_mut_obj(doc);
+            yyjson_mut_obj_add_strcpy(doc,entry,"evidence_id",(const char*)sqlite3_column_text(stmt,0));
+            yyjson_mut_obj_add_strcpy(doc,entry,"result_hash",(const char*)sqlite3_column_text(stmt,1));
+            yyjson_mut_obj_add_strcpy(doc,entry,"evidence_ref",(const char*)sqlite3_column_text(stmt,2));
+            yyjson_mut_obj_add_strcpy(doc,entry,"result_ref",(const char*)sqlite3_column_text(stmt,3));
+            yyjson_mut_obj_add_strcpy(doc,entry,"memory_summary",(const char*)sqlite3_column_text(stmt,4));
+            yyjson_mut_arr_append(pending,entry);}
+    }
+    sqlite3_finalize(stmt);yyjson_mut_obj_add_val(doc,root,"pending_user_confirmations",pending);
     char *json=yyjson_mut_write(doc,0,NULL);yyjson_mut_doc_free(doc);return json;
+}
+
+int cbm_learning_confirm_user(cbm_store_t *store,const char *project,const char *id,const char *hash){
+    sqlite3 *db=store ? cbm_store_get_db(store):NULL;
+    if(!db || !project || !id || !hash || strlen(hash)!=64 || learning_schema(db)!=CBM_STORE_OK)return CBM_STORE_REJECTED;
+    if(exec_sql(db,"BEGIN IMMEDIATE")!=CBM_STORE_OK)return CBM_STORE_ERR;
+    sqlite3_stmt *stmt=NULL;int rc=CBM_STORE_ERR;
+    if(sqlite3_prepare_v2(db,"INSERT OR IGNORE INTO verified_learning_user_receipt "
+        "SELECT e.evidence_id,r.result_hash FROM memory_evidence e JOIN memory_task t ON t.task_id=e.task_id "
+        "JOIN memory_task_result r ON r.result_id=e.result_id WHERE e.evidence_id=?1 AND t.project=?2 "
+        "AND r.result_hash=?3 AND r.result_type='user_confirmation' AND e.trust_class='explicit_user' "
+        "AND e.source_type='user' AND e.evidence_state='valid'",-1,&stmt,NULL)==SQLITE_OK){
+        sqlite3_bind_text(stmt,1,id,-1,SQLITE_TRANSIENT);sqlite3_bind_text(stmt,2,project,-1,SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt,3,hash,-1,SQLITE_TRANSIENT);
+        if(sqlite3_step(stmt)==SQLITE_DONE)rc=sqlite3_changes(db)==1 ? CBM_STORE_OK:CBM_STORE_REPLAYED;
+    }
+    sqlite3_finalize(stmt);
+    if(rc==CBM_STORE_REPLAYED){
+        if(sqlite3_prepare_v2(db,"SELECT 1 FROM verified_learning_user_receipt p JOIN memory_evidence e "
+            "ON e.evidence_id=p.evidence_id JOIN memory_task t ON t.task_id=e.task_id "
+            "WHERE p.evidence_id=?1 AND p.result_hash=?2 AND t.project=?3",-1,&stmt,NULL)!=SQLITE_OK)rc=CBM_STORE_ERR;
+        else {
+            sqlite3_bind_text(stmt,1,id,-1,SQLITE_TRANSIENT);sqlite3_bind_text(stmt,2,hash,-1,SQLITE_TRANSIENT);
+            sqlite3_bind_text(stmt,3,project,-1,SQLITE_TRANSIENT);
+            if(sqlite3_step(stmt)!=SQLITE_ROW)rc=CBM_STORE_REJECTED;
+        }
+        sqlite3_finalize(stmt);
+    }
+    if(rc==CBM_STORE_OK)rc=audit(db,"user_confirmation",id,"pending","confirmed",(int64_t)time(NULL)*1000);
+    if(rc==CBM_STORE_OK || rc==CBM_STORE_REPLAYED){
+        if(exec_sql(db,"COMMIT")!=CBM_STORE_OK)return CBM_STORE_ERR;
+        (void)cbm_learning_refresh(store,0);
+    }else exec_sql(db,"ROLLBACK");
+    return rc;
 }
 
 int cbm_learning_control(cbm_store_t *store,const char *project,const char *action,

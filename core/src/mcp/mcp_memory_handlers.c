@@ -318,6 +318,8 @@ char *cbm_mcp_memory_security_guard(cbm_mcp_server_t *srv, const char *tool_name
                                 (scope && strcmp(scope, "project") != 0) ||
                                 ((workspace || user) && !fixture_scope) ||
                                 !cbm_mcp_memory_project_authorized(srv, project));
+    if ((!strcmp(tool_name,"memory_learning_status") || !strcmp(tool_name,"memory_learning_control")) &&
+        global_default && !global_identity_valid)scope_invalid=true;
     if (scope_invalid) {
         const char *scope_value = project ? project : (workspace ? workspace : user);
         char *result = memory_security_scope_response(scope_value);
@@ -528,6 +530,7 @@ static yyjson_mut_val *memory_item_to_json(yyjson_mut_doc *doc, const cbm_memory
     yyjson_mut_obj_add_str(doc, obj, "evidence_json", memory_item_str(it->evidence_json));
     yyjson_mut_obj_add_str(doc, obj, "retrieval_source", memory_item_str(it->retrieval_source));
     yyjson_mut_obj_add_real(doc, obj, "retrieval_score", it->retrieval_score);
+    yyjson_mut_obj_add_real(doc, obj, "learning_adjustment", it->learning_adjustment);
     return obj;
 }
 

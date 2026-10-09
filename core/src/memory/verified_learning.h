@@ -13,4 +13,7 @@ int cbm_learning_control(cbm_store_t *store, const char *project, const char *ac
 int cbm_learning_tool_outcome(const char *tool_name, const char *output_json);
 int cbm_learning_record_receipt(cbm_store_t *store, const char *evidence_id,
                                 const char *result_hash, int outcome);
+/* Called only by the authenticated native Manager confirmation route, never MCP. */
+int cbm_learning_confirm_user(cbm_store_t *store, const char *project,
+                              const char *evidence_id, const char *result_hash);
 #endif

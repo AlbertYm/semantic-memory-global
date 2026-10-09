@@ -33,6 +33,7 @@ jobs:
         shell: pwsh
         run: python -X utf8 tests/test_learning_runtime.py --runtime core/build/c/semantic-memory-mcp.exe
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        if: always()
         with:
           name: verified-learning-windows-x64
           path: |
