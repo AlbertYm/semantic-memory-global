@@ -124,6 +124,7 @@ static int test_learning(void){
     CHECK(cbm_learning_tool_outcome("events","{\"exit_code\":0,\"output\":\"PASS\"}")==-1);
     CHECK(cbm_learning_tool_outcome("exec_command","[{\"exit_code\":0,\"output\":\"PASS\"},{\"session_id\":1}]")==-1);
     CHECK(item(store,"z-duplicate","lesson","Learning search fixture beta",.72)==CBM_STORE_OK);
+    now=(int64_t)time(NULL)*1000; /* Later fixture writes must not simulate clock rollback. */
     CHECK(cbm_learning_refresh(store,now)==CBM_STORE_OK);
     CHECK(scalar(db,"SELECT COUNT(*) FROM memory_item WHERE id='z-duplicate' AND status='archived'")==1);
     CHECK(cbm_learning_control(store,"learning-fixture","pause",NULL,"pause-1",0,now)==CBM_STORE_OK);

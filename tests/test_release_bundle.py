@@ -25,11 +25,11 @@ class BundleTests(unittest.TestCase):
         cls.scratch = ROOT/'build/bundle-tests'; cls.scratch.mkdir(parents=True, exist_ok=True)
         cls.temp = (cls.scratch/('release-'+uuid.uuid4().hex[:8])).resolve()
         cls.temp.mkdir()  # normal inherited Windows profile ACL for legacy R5
-        cls.package = cls.extract(Path(os.environ['SEMANTIC_MEMORY_TEST_ARCHIVE']), 'R6 extract 中文')
+        cls.package = cls.extract(Path(os.environ['SEMANTIC_MEMORY_TEST_ARCHIVE']), 'current extract 中文')
         cls.release = json.loads((cls.package/'RELEASE.json').read_text(encoding='utf-8'))
         cls.previous = None
         if os.environ.get('SEMANTIC_MEMORY_TEST_PREVIOUS_ARCHIVE'):
-            cls.previous = cls.extract(Path(os.environ['SEMANTIC_MEMORY_TEST_PREVIOUS_ARCHIVE']), 'R5 extract 中文')
+            cls.previous = cls.extract(Path(os.environ['SEMANTIC_MEMORY_TEST_PREVIOUS_ARCHIVE']), 'previous extract 中文')
 
     @classmethod
     def extract(cls, archive, name):
@@ -84,6 +84,21 @@ class BundleTests(unittest.TestCase):
             workspace=codex.parent/(label+' workspace 中文');workspace.mkdir()
             _,task=c.tool('memory_task_begin',{'project':str(workspace),'workspace':str(workspace),'scope':'project','session_id':label+'-session','turn_id':label+'-turn','prompt_sha256':hashlib.sha256(b'fixture').hexdigest(),'prompt_length':7,'idempotency_key':label+'-task'})
             r,project=c.tool('memory_resolve_project',{'task_id':task['task_id']});self.assertFalse(r.get('isError'))
+            if self.release.get('legacy_compatibility_runtime'):
+                names=[t['name'] for t in c.tools]
+                self.assertEqual(len(names),len(set(names)))
+                self.assertEqual(len(names),55)
+                for name in ('neuroplastic_capture','neuroplastic_evolution','neuroplastic_maintenance','neuroplastic_runtime_control'):
+                    self.assertIn(name,names)
+                _,off=c.tool('neuroplastic_capture',{'project':project['project_uuid'],'mode':'off',
+                    'policy_path':str(runtime/'missing-policy.json'),'policy_sha256':'a'*64,
+                    'authorization_path':str(runtime/'missing-auth.json'),'authorization_sha256':'b'*64,
+                    'capture_id':label+'-off','task_id':task['task_id'],'evidence_id':label+'-off',
+                    'idempotency_key':label+'-off','scope':'project','kind':'lesson',
+                    'summary':'Isolated off-mode compatibility check','content':'Synthetic fixture','evidence_grade':'C'})
+                self.assertEqual(off['reason'],'CAPABILITY_OFF');self.assertFalse(off['wrote'])
+                _,learning=c.tool('memory_learning_status',{'project':project['project_uuid']})
+                self.assertTrue(learning['enabled']);self.assertTrue(learning['ready'])
             r,item=c.tool('events',{'project':project['project_uuid'],'scope':'global','kind':'lesson','summary':'Synthetic isolated release acceptance '+label+'.','content':'2026-10-09 isolated fixture validates packaged project identity and native capture.','source':'isolated-release-fixture','importance':0.7,'payload':{}})
             self.assertFalse(r.get('isError'));self.assertEqual(item['status'],'accepted')
             _,done=c.tool('memory_task_complete',{'project':project['project_uuid'],'task_id':task['task_id'],'outcome':'completed','attributions':[],'idempotency_key':label+'-complete'})
@@ -149,8 +164,8 @@ class BundleTests(unittest.TestCase):
         self.repair(user,codex,runtime,'Rollback')
         self.ps(self.package,'Uninstall-Bundle.ps1',user,codex,runtime)
 
-    def test_upgrade_from_original_r5_failure_recovery_and_uninstall(self):
-        if self.previous is None:self.skipTest('Set SEMANTIC_MEMORY_TEST_PREVIOUS_ARCHIVE for original R5 upgrade.')
+    def test_upgrade_from_previous_release_failure_recovery_and_uninstall(self):
+        if self.previous is None:self.skipTest('Set SEMANTIC_MEMORY_TEST_PREVIOUS_ARCHIVE for previous release upgrade.')
         user,codex,runtime,before=self.profile('upgrade')
         self.ps(self.previous,'Install-Bundle.ps1',user,codex,runtime)
         prior_config=(codex/'config.toml').read_bytes()
