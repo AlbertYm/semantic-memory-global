@@ -183,8 +183,10 @@ static int outcome_value(yyjson_val *root, int depth) {
 }
 
 int cbm_learning_tool_outcome(const char *name,const char *json) {
-    if(!name || !json || !(strstr(name,"exec_command") || strstr(name,"write_stdin") ||
-        strcmp(name,"functions.exec")==0))return -1;
+    if(!name || !json) return -1;
+    /* A JavaScript orchestrator can print arbitrary JSON. It is not a process receipt. */
+    const char *leaf=strrchr(name,'.'); leaf=leaf ? leaf+1 : name;
+    if(strcmp(leaf,"exec_command")!=0 && strcmp(leaf,"write_stdin")!=0) return -1;
     yyjson_doc *doc=yyjson_read(json,strlen(json),0);
     int result=doc ? outcome_value(yyjson_doc_get_root(doc),0) : -1;
     yyjson_doc_free(doc);return result;

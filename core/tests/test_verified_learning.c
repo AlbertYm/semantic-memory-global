@@ -119,6 +119,8 @@ static int test_learning(void){
     CHECK(cbm_learning_tool_outcome("exec_command","{\"exit_code\":1,\"output\":\"PASS\"}")==1);
     CHECK(cbm_learning_tool_outcome("exec_command","{\"session_id\":1,\"exit_code\":0,\"output\":\"running\"}")==-1);
     CHECK(cbm_learning_tool_outcome("exec_command","\"PASS all tests\"")==-1);
+    CHECK(cbm_learning_tool_outcome("functions.exec","{\"exit_code\":0,\"output\":\"fabricated by text()\"}")==-1);
+    CHECK(cbm_learning_tool_outcome("fake_exec_command","{\"exit_code\":0,\"output\":\"PASS\"}")==-1);
     CHECK(cbm_learning_tool_outcome("events","{\"exit_code\":0,\"output\":\"PASS\"}")==-1);
     CHECK(cbm_learning_tool_outcome("exec_command","[{\"exit_code\":0,\"output\":\"PASS\"},{\"session_id\":1}]")==-1);
     CHECK(item(store,"z-duplicate","lesson","Learning search fixture beta",.72)==CBM_STORE_OK);
