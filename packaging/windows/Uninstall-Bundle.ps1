@@ -12,7 +12,7 @@ $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-J
 Assert-SmCodexDesktopStopped -UserHome $state.user_home -AllowRunningCodexForIsolatedTest:$AllowRunningCodexForIsolatedTest
 $configPath = [string]$state.config_path
 if (Test-Path -LiteralPath $configPath -PathType Leaf) {
-    $preflightSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $configPath).Hash.ToLowerInvariant()
+    $preflightSha = (Get-SmBundleSha256File $configPath)
     if ($preflightSha -ne [string]$state.config_installed_sha256) { throw 'config.toml changed after install. No uninstall changes made.' }
 }
 $pluginInstaller = Join-Path $PSScriptRoot 'Install-SemanticMemoryPlugin.ps1'
@@ -22,7 +22,7 @@ if ($state.plugin_transaction_path -and (Test-Path -LiteralPath $state.plugin_tr
 }
 $configPath = [string]$state.config_path
 if (Test-Path -LiteralPath $configPath -PathType Leaf) {
-    $currentSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $configPath).Hash.ToLowerInvariant()
+    $currentSha = (Get-SmBundleSha256File $configPath)
     if ($currentSha -ne [string]$state.config_installed_sha256) {
         throw 'config.toml changed after install. Uninstall stopped to preserve newer configuration; see README.'
     }

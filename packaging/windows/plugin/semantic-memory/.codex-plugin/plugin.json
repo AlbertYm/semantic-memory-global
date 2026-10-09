@@ -1,6 +1,6 @@
 {
   "name": "semantic-memory",
-  "version": "1.1.0-rc.1+codex.20261005112500",
+  "version": "1.1.0-rc.1+codex.20261009131000",
   "description": "Lifecycle hooks, memory skill, and Memory Manager entry points for the local Semantic Memory service.",
   "author": {
     "name": "AlbertYm"

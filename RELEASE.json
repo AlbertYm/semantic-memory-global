@@ -1,16 +1,15 @@
 {
   "schema": "semantic-memory-release/v1",
-  "version": "1.1.0-rc.1+codex.20261005112500",
-  "installer_revision": "R5",
-  "tag": "v1.1.0-rc.1-codex.20261005112500-r5",
+  "version": "1.1.0-rc.1+codex.20261009131000",
+  "installer_revision": "R6",
+  "tag": "v1.1.0-rc.1-codex.20261009131000-r6",
   "runtime_version": "v1.1.0-rc.1",
-  "runtime_version_id": "stage14-global-r5-20261005",
+  "runtime_version_id": "stage14-global-r6-20261009",
   "core_revision": "global-scope-local-r2",
   "runtime_sha256": "95c13aa9dc4219923b96a5d3454256c6ecbb173556c23939c570642e99e88f80",
-  "archive_name": "SemanticMemory-1.1.0-rc.1-codex.20261005112500-windows-x64-r5.zip",
+  "archive_name": "SemanticMemory-1.1.0-rc.1-codex.20261009131000-windows-x64-r6.zip",
   "repository": "https://github.com/AlbertYm/semantic-memory-global",
   "upstream_repository": "https://github.com/AlbertYm/neuroplastic-memory-mcp",
   "upstream_commit": "0825fca6d25b63dfe865e5834a57878a11f8efef",
-  "full_source_binary_rebuild": false,
-  "unreleased_source_revision": "codex-memory-repairs-20261009"
+  "full_source_binary_rebuild": false
 }

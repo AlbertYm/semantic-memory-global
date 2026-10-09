@@ -12,7 +12,7 @@ def build(runtime,out):
     if sha(runtime)!=release['runtime_sha256']:raise ValueError('Runtime SHA256 does not match RELEASE.json')
     bundle=out/release['archive_name'].removesuffix('.zip')
     if bundle.exists():raise FileExistsError('Release directory already exists; choose an empty output directory')
-    out.mkdir(parents=True,exist_ok=True);shutil.copytree(ROOT/'packaging/windows',bundle)
+    out.mkdir(parents=True,exist_ok=True);shutil.copytree(ROOT/'packaging/windows',bundle,ignore=shutil.ignore_patterns('__pycache__','*.pyc'))
     for name in ['README.md','LICENSE','THIRD_PARTY.md','RELEASE.json']:
         shutil.copyfile(ROOT/name,bundle/name)
     for name in ['docs','licenses','runtime']:shutil.copytree(ROOT/name,bundle/name)

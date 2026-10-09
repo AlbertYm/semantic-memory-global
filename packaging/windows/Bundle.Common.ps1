@@ -1,4 +1,24 @@
-﻿function Test-SmCodexDesktopRunning {
+﻿function Get-SmBundleSha256File {
+    param([string]$Path)
+    $stream = [IO.File]::OpenRead($Path)
+    $algorithm = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-','').ToLowerInvariant() }
+    finally { $stream.Dispose(); $algorithm.Dispose() }
+}
+
+function Resolve-SmPython {
+    param([string]$PythonExe)
+    if (-not $PythonExe) {
+        $python = Get-Command python.exe -ErrorAction SilentlyContinue
+        if ($python) { $PythonExe = $python.Source }
+        else { throw 'PYTHON_311_REQUIRED: install Python 3.11+ or pass -PythonExe. No install changes made.' }
+    }
+    $probe = @(& $PythonExe -I -c 'import sys; print(sys.executable); sys.exit(0 if sys.version_info >= (3,11) else 1)' 2>$null)
+    if ($LASTEXITCODE -ne 0 -or $probe.Count -ne 1) { throw 'PYTHON_311_REQUIRED: no install changes made.' }
+    return ([string]$probe[0]).Trim()
+}
+
+function Test-SmCodexDesktopRunning {
     $matches = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {
         ($_.Name -ieq 'ChatGPT.exe' -and [string]$_.ExecutablePath -match 'OpenAI\.Codex_') -or
         ($_.Name -ieq 'codex.exe' -and [string]$_.CommandLine -match '\bapp-server\b') -or

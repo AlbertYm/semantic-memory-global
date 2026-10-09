@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('Apply','Verify','Rollback')][string]$Mode = 'Apply',
     [string]$UserHome = $env:USERPROFILE,
@@ -22,14 +22,16 @@ if (-not $CodexHome) {
 if ($Mode -ne 'Verify') {
     Assert-SmCodexDesktopStopped -UserHome $UserHome -AllowRunningCodexForIsolatedTest:$AllowRunningCodexForIsolatedTest
 }
-if (-not $PythonExe) {
-    $python = Get-Command python.exe -ErrorAction SilentlyContinue
-    if ($python) { $PythonExe = $python.Source }
-    else { throw 'PYTHON_311_REQUIRED: install Python 3.11+ or pass -PythonExe. No repair changes made.' }
+if (-not $TransactionPath -and (Test-Path -LiteralPath (Join-Path $InstallRoot 'codex-memory-repair-state.json'))) {
+    $pointer = Get-Content -LiteralPath (Join-Path $InstallRoot 'codex-memory-repair-state.json') -Encoding UTF8 -Raw | ConvertFrom-Json
+    $TransactionPath = [string]$pointer.transaction
 }
-$probe = @(& $PythonExe -I -c 'import sys; print(sys.executable); sys.exit(0 if sys.version_info >= (3,11) else 1)' 2>$null)
-if ($LASTEXITCODE -ne 0 -or $probe.Count -ne 1) { throw 'PYTHON_311_REQUIRED: no repair changes made.' }
-$PythonExe = ([string]$probe[0]).Trim()
+if ($TransactionPath) {
+    $transaction = Get-Content -LiteralPath (Join-Path $TransactionPath 'transaction.json') -Encoding UTF8 -Raw | ConvertFrom-Json
+    if (-not $PythonExe) { $PythonExe = [string]$transaction.registration.command }
+    if (-not $MmcapiDatabase) { $MmcapiDatabase = [string]$transaction.mmcapi_db }
+}
+$PythonExe = Resolve-SmPython -PythonExe $PythonExe
 $helper = Join-Path $PSScriptRoot 'memory-adapter\repair_codex_memory.py'
 $arguments = @('-I',$helper,$Mode.ToLowerInvariant(), '--user-home',$UserHome,'--install-root',$InstallRoot,'--codex-home',$CodexHome)
 if ($MmcapiDatabase) { $arguments += @('--mmcapi-db',$MmcapiDatabase) }

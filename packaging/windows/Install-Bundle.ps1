@@ -3,6 +3,8 @@ param(
     [string]$UserHome = $env:USERPROFILE,
     [string]$InstallRoot,
     [string]$CodexHome,
+    [string]$PythonExe,
+    [string]$MmcapiDatabase,
     [switch]$AllowRunningCodexForIsolatedTest
 )
 
@@ -49,6 +51,7 @@ function Get-Expectation($state,$property) {
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'This package supports Windows x64 only.' }
 if (-not (Test-Path -LiteralPath $payloadManifest -PathType Leaf)) { throw 'Package is incomplete: payload manifest is missing.' }
 Assert-SmCodexDesktopStopped -UserHome $UserHome -AllowRunningCodexForIsolatedTest:$AllowRunningCodexForIsolatedTest
+$PythonExe = Resolve-SmPython -PythonExe $PythonExe
 if (Test-Path -LiteralPath (Join-Path $InstallRoot 'codex-memory-repair-state.json') -PathType Leaf) {
     throw 'PERSISTENT_REPAIR_ACTIVE: Roll back the persistent Codex memory repair before upgrading the native bundle. No install changes made.'
 }
@@ -78,12 +81,13 @@ if (Test-Path -LiteralPath $InstallRoot) {
             throw "The runtime target has an unsupported managed marker. Refusing to continue: $managedMarkerPath"
         }
         $runtimeExistedBefore = $true
-        $packageManifestSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $payloadManifest).Hash.ToLowerInvariant()
+        $packageManifestSha = (Get-SmBundleSha256File $payloadManifest)
         $runtimeMode = $(if ([string]$managedMarker.current_manifest_sha256 -eq $packageManifestSha) { 'Verify' } else { 'Upgrade' })
     }
 }
 
 $pluginTransaction = $null
+$persistentTransaction = $null
 $runtimeInstalled = $false
 $configExisted = Test-Path -LiteralPath $configPath -PathType Leaf
 $configBackup = $null
@@ -120,15 +124,12 @@ try {
     )
     $pluginTransaction = [string]$plugin.transaction_path
 
-    $configBeforeSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $configPath).Hash.ToLowerInvariant()
-    $config = Invoke-JsonScript $configRepair @(
-        '-Mode','Apply','-ConfigPath',$configPath,'-InstallRoot',$InstallRoot,
-        '-ExpectedConfigSha256',$configBeforeSha,'-BackupRoot',(Join-Path $InstallRoot 'backups\codex-config')
-    )
-    if ([string]$config.status -notin @('APPLIED_VERIFIED','REPLAYED_ZERO_WRITE')) {
-        throw 'Codex MCP configuration was not verified.'
-    }
-    $configInstalledSha = (Get-FileHash -Algorithm SHA256 -LiteralPath $configPath).Hash.ToLowerInvariant()
+    $persistentArguments = @('-Mode','Apply','-UserHome',$UserHome,'-InstallRoot',$InstallRoot,'-CodexHome',$CodexHome,'-PythonExe',$PythonExe)
+    if ($MmcapiDatabase) { $persistentArguments += @('-MmcapiDatabase',$MmcapiDatabase) }
+    if ($AllowRunningCodexForIsolatedTest) { $persistentArguments += '-AllowRunningCodexForIsolatedTest' }
+    $persistent = Invoke-JsonScript (Join-Path $PSScriptRoot 'Repair-Codex-Memory.ps1') $persistentArguments
+    if ([string]$persistent.status -ne 'APPLIED_VERIFIED') { throw 'Persistent MCP registration was not applied.' }
+    $persistentTransaction = [string]$persistent.transaction
 
     $state = [ordered]@{
         schema = 'semantic-memory-transfer-install/v1'
@@ -144,7 +145,8 @@ try {
         config_path = [IO.Path]::GetFullPath($configPath)
         config_existed_before = $configExisted
         config_backup_path = $configBackup
-        config_installed_sha256 = $configInstalledSha
+        config_installed_sha256 = (Get-SmBundleSha256File (Join-Path $persistentTransaction 'config.before.toml'))
+        persistent_repair_transaction = $persistentTransaction
         plugin_state_root = [IO.Path]::GetFullPath($pluginStateRoot)
         plugin_transaction_path = $pluginTransaction
     }
@@ -156,6 +158,13 @@ try {
     Write-Host 'Fully exit and reopen Codex Desktop, then create a new task for manual acceptance.'
 } catch {
     $failure = $_.Exception.Message
+    if ($persistentTransaction) {
+        $rollbackArguments = @('-Mode','Rollback','-UserHome',$UserHome,'-InstallRoot',$InstallRoot,'-CodexHome',$CodexHome,'-PythonExe',$PythonExe,'-TransactionPath',$persistentTransaction)
+        if ($MmcapiDatabase) { $rollbackArguments += @('-MmcapiDatabase',$MmcapiDatabase) }
+        if ($AllowRunningCodexForIsolatedTest) { $rollbackArguments += '-AllowRunningCodexForIsolatedTest' }
+        $rollback = Invoke-JsonScript (Join-Path $PSScriptRoot 'Repair-Codex-Memory.ps1') $rollbackArguments
+        if ([string]$rollback.status -ne 'ROLLED_BACK') { throw "Install failed; persistent rollback needs recovery: $failure" }
+    }
     if ($pluginTransaction -and (Test-Path -LiteralPath $pluginTransaction)) {
         & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $pluginInstaller -Action Rollback -PackageRoot $PSScriptRoot -UserHome $UserHome -CodexHome $CodexHome -StateRoot $pluginStateRoot -TransactionPath $pluginTransaction -ConfirmUserMutation | Out-Null
     }

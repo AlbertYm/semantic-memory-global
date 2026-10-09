@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT/"packaging/windows/memory-adapter"
@@ -183,7 +184,9 @@ class TransactionTests(unittest.TestCase):
         spec=importlib.util.spec_from_file_location("builder",ROOT/"tools/build_release.py")
         builder=importlib.util.module_from_spec(spec);spec.loader.exec_module(builder)
         output=self.temp/"unreleased-dist"
-        with self.assertRaisesRegex(ValueError,"not a published release"):builder.build(self.core,output)
+        (self.temp/"RELEASE.json").write_text(json.dumps({"unreleased_source_revision":"fixture-maintenance"}),encoding="utf-8")
+        with patch.object(builder,"ROOT",self.temp):
+            with self.assertRaisesRegex(ValueError,"not a published release"):builder.build(self.core,output)
         self.assertFalse(output.exists())
 
 if __name__ == "__main__": unittest.main()

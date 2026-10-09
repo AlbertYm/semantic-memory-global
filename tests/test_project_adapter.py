@@ -49,12 +49,12 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(before,db.read_bytes())
 
 class Client:
-    def __init__(self,core,data):
+    def __init__(self,core,data,command=None):
         if core.parent.parent.name.casefold() != "versions" or core.parent.parent.parent.name.casefold() != "app":
             raise RuntimeError("Use a managed version payload; the stable bin launcher fixes the production data root.")
         env = os.environ.copy();env.update(CBM_DATA_ROOT=str(data),CBM_CACHE_DIR=str(data),CBM_ARTIFACT_DIR=str(data/"artifacts"),CBM_MEMORY_EMBED_BACKEND="static",CBM_MEMORY_AUTO_MAINTAIN="0")
         self.stderr = (data.parent/"stderr.log").open("wb")
-        self.p = subprocess.Popen([sys.executable,"-I","-u",str(SOURCE),"--core",str(core),"--data-root",str(data)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=self.stderr,env=env,text=True,encoding="utf-8")
+        self.p = subprocess.Popen(command or [sys.executable,"-I","-u",str(SOURCE),"--core",str(core),"--data-root",str(data)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=self.stderr,env=env,text=True,encoding="utf-8")
         self.q = queue.Queue();self.seq = 0
         def read():
             for line in self.p.stdout:self.q.put(json.loads(line))
