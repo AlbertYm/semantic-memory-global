@@ -24,6 +24,8 @@ flowchart LR
 
 ## 源码与兼容组件边界
 
+源码继承链为 [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp)（原始代码图引擎）→ [ZR113146/semantic-memory-mcp](https://github.com/ZR113146/semantic-memory-mcp)（ADR 与 CJK 检索）→ [AlbertYm/neuroplastic-memory-mcp](https://github.com/AlbertYm/neuroplastic-memory-mcp)（直接上游的神经可塑性与反馈机制）→ [AlbertYm/semantic-memory-global](https://github.com/AlbertYm/semantic-memory-global)（本分发与 R7 验证结果学习）。前三层归属依据为固定上游提交的 [AUTHORS.md](https://github.com/AlbertYm/neuroplastic-memory-mcp/blob/0825fca6d25b63dfe865e5834a57878a11f8efef/AUTHORS.md)，本地保留 [core/AUTHORS.md](../core/AUTHORS.md)。源码派生关系与 GitHub fork 元数据不同；上游有某个机制也不表示当前默认策略已启用它。
+
 `core/` 基于上游固定提交 `0825fca6d25b63dfe865e5834a57878a11f8efef`，保留 LICENSE、THIRD_PARTY 与 vendored 组件。R7 的新增代码、作用域修复、测试与 UI 公开。主 EXE 版本和哈希见 RELEASE.json。
 
 上游已提交源码缺少预编译运行时中的 4 个 `neuroplastic_*` 实现。为保留旧功能，包内另附 `semantic-memory-v21-compat.exe`，SHA256 为 `95c13aa9dc4219923b96a5d3454256c6ecbb173556c23939c570642e99e88f80`。Python 适配仅为这 4 个工具懒启动经过哈希校验的旧组件，参数与权限检查仍由旧原生实现执行。其来源是已验收的 R6 运行时，未从当前源码重建；源码闭合与逐字节可复现仍未完成。其他工具、新学习、Hook 和 GUI 由 R7 主运行时提供。

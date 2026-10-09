@@ -1,10 +1,16 @@
 # 安装、升级与恢复
 
+## 应该下载哪一个文件
+
+普通使用者从 [R7.1 Release 的 Assets](https://github.com/AlbertYm/semantic-memory-global/releases/tag/v1.1.0-rc.1-codex.20261009170930-r7.1) 下载 `SemanticMemory-1.1.0-rc.1-codex.20261009170930-windows-x64-r7.1.zip` 和同名 `.sha256`。这是包含运行时、插件和安装入口的完整包。
+
+`git clone`、`git pull`、Code → Download ZIP 和 Release 自动生成的 `Source code (zip/tar.gz)` 得到源码，不包含完整安装 payload；开发者须按 [构建文档](ARCHITECTURE.zh-CN.md#构建与打包) 准备已核实的运行时再打包。普通安装不需要拉取 Git 仓库。
+
 ## 前提与依赖
 
 - Windows 10/11 x64，当前普通用户，可写自己的 LocalAppData 和 `.codex`。
 - 已安装并启动过 Codex Desktop；安装前保存工作并完全退出 Codex 与 Memory Manager。
-- 使用系统 Windows PowerShell 5.1。完整包包含原生运行时。R7 安装及项目身份适配要求 Python 3.11+，`python.exe` 须可用；自定义解释器可向 `Install-Bundle.ps1` 传入 `-PythonExe`。不需要 Node.js、编译器、外部 AI 或 API key。
+- 使用系统 Windows PowerShell 5.1。完整包包含原生运行时，**不内置 Python，也不自动下载安装 Python**。安装及项目身份适配要求 Python 3.11+，`python.exe` 须可用；安装 Python 时启用添加到 PATH，然后打开新终端运行 `python.exe --version` 确认。只有 `py` 启动器可用不满足默认入口；自定义解释器可向 `Install-Bundle.ps1` 传入 `-PythonExe`。不需要 Node.js、编译器、外部 AI 或额外 API key。
 - 原生 r2 的安装根路径须使用 ASCII 字符，可有空格。中文工作区可正常记录和召回；中文 Windows 用户名使默认 LocalAppData 路径非 ASCII 时，预检会停止且不写文件，请选择自己可写的 ASCII InstallRoot。
 - 下载需要网络；安装不下载第三方依赖。MCP 的基本记忆与 static embedding 在本地执行。Codex 自己的模型服务网络要求由 Codex 决定。
 
@@ -15,6 +21,10 @@
 3. 完全退出 Codex 和 Manager，双击 `Install Semantic Memory.cmd`。
 4. 安装器先检查 Python 和路径，再验证 payload、安装用户级原生程序、合并个人插件、启用项目身份适配并同步持久 MCP 注册，最后执行自动校验。
 5. 看到安装成功后重新打开 Codex，在新聊天验证工具、记录与召回。
+
+如 Codex 提示插件信任，核对 Semantic Memory 的名称和版本后启用。正常安装无需手动编辑 MCP 配置、复制数据库或填入额外 API key。双击 `Verify Semantic Memory.cmd` 可检查文件、配置和协议入口；双击 `Open Memory Manager.cmd` 可打开本地管理界面。文件校验通过不能代替重启后的真实聊天验证。
+
+每个人使用自己的本地记忆库，完整发布包不包含发布者的记忆、配置和凭据。新用户没有相关历史时召回为空是正常结果。已有版本的升级按下文判断，不能一律按全新安装处理。
 
 | 位置 | 内容 |
 | --- | --- |

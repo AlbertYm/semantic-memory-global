@@ -14,15 +14,40 @@ Auditable local memory for Codex Desktop, with global recall across workspaces.
 - [实现、源码和构建边界](docs/ARCHITECTURE.zh-CN.md)
 - [发布修复与验证范围](docs/RELEASE-NOTES.zh-CN.md)
 
+## 这个 MCP 的优势
+
+目标是让有用的经验在后续任务中更容易被选中，同时保留来源、证据和恢复路径。它提供可以直接查询和管理的本地记忆服务，可与文件式记忆配合使用；不替代模型训练，也不宣称优于所有版本的 Codex 内置记忆。
+
+| 能力 | 对实际使用的帮助 | 当前边界 |
+| --- | --- | --- |
+| 跨工作区召回与项目范围 | 换项目仍可召回自己的全局偏好，工程决策按项目过滤 | 全局仍需真实工作区/任务作为审计锚点；安装不共享不同用户的数据库 |
+| 中文与结构化检索 | 结合本地向量、CJK 全文检索和类型/实体条件，查找历史经验与决定 | 默认 static embedding，不需要额外模型 API；召回质量需用自己的内容验证 |
+| 基于真实结果的选择与关联 | 有用记忆获得有界信用，两条共同成功使用的记忆增加关联，影响后续相关候选排序 | 需已完成任务、真实召回和使用归因、可信结果收据；重复召回和模型自报告不增加成功信用 |
+| 受控整合和可恢复归档 | 两个独立成功任务支持候选晋升；折叠精确重复，衰减低效用普通记忆，归档后可恢复 | 不自动语义合并或生成高层概念；保护偏好、约束、决策和高重要性记忆，不自动物理删除 |
+| 可检查、可暂停 | MCP 与本地 Memory Manager 可查看信用、关联和归档，确认结果，暂停/恢复新学习 | 没有可信直接命令收据的客户端路径需要 Manager 人工确认；不是所有记录都自动获奖 |
+| 本地数据与公开实现 | 记忆处理默认在本机，保留事件、使用和任务证据，可核对源码与构建记录 | Codex 本身仍使用自己的模型服务；旧兼容组件的源码闭合限制见下文 |
+
+例如：一次修复实际召回并使用了两条经验，任务完成且结果证据被确认后，这两条经验及其共同使用关联可得到信用，下一次相关问题的候选排序会受影响。失败或矛盾证据可降低效用，更正与撤回会补偿信用。没有可靠结果证据时只保留审计记录，不伪造强化。
+
+新自动学习默认启用，但由实际检索、反馈和任务完成触发有界处理，闲置时没有后台训练。已验证隔离任务中的信用与排序变化；长期自然任务是否更准确仍需统计，未证明持续成功率提升。完整条件、衰减和恢复规则见 [功能文档](docs/FUNCTIONS.zh-CN.md#r7-自动学习)。
+
 ## 快速开始
 
-1. 从 Releases 下载 `SemanticMemory-1.1.0-rc.1-codex.20261009170930-windows-x64-r7.1.zip` 和对应 SHA256 文件，解压整个 ZIP。
+**普通使用者请下载 Release 的完整安装 ZIP。** `git clone`、`git pull`、Code → Download ZIP，以及 Release 自动生成的 `Source code (zip/tar.gz)` 都是源码，不包含完整安装 payload，不能代替安装包。源码构建方式见 [架构文档](docs/ARCHITECTURE.zh-CN.md#构建与打包)。
+
+先准备 Windows 10/11 x64、已安装并启动过的 Codex Desktop，以及 **Python 3.11+**。**安装包不内置 Python，也不会自动下载它。** 安装 Python 时启用添加到 PATH，打开新终端运行 `python.exe --version` 确认；只有 `py` 启动器可用不满足默认双击入口要求。系统自带 Windows PowerShell 5.1 即可，无需管理员权限、Node.js、编译器或额外 AI API key。
+
+1. 从 [R7.1 Release 的 Assets](https://github.com/AlbertYm/semantic-memory-global/releases/tag/v1.1.0-rc.1-codex.20261009170930-r7.1) 下载 `SemanticMemory-1.1.0-rc.1-codex.20261009170930-windows-x64-r7.1.zip` 和对应 SHA256 文件，完整解压；不要在压缩包预览内运行，也不要只复制 EXE。
 2. 保存工作，完全退出 Codex Desktop 和 Memory Manager。正式 R6/R7 持久修复仍处于启用状态时，先在原包运行 `Rollback Persistent Codex Memory.cmd`，保留数据再升级。
 3. 确认已安装 Python 3.11+ 且 `python.exe` 可用，双击 `Install Semantic Memory.cmd`。使用当前普通用户，无需管理员权限。
 4. 成功后重新打开 Codex；如果出现插件信任提示，核对插件名称和版本后确认。
 5. 新建聊天，说明一项值得长期保存的偏好，例如“记住：解释步骤时默认用中文，这条偏好跨项目生效”。后续在另一个工作区查询这项偏好，验证实际记录和召回。
 
-没有相关历史时，召回为空是正常情况。记录成功、候选可召回、知识晋升、使用反馈是不同状态，不能把它们混为一谈。
+安装器自动安装运行时、个人插件、MCP 注册和项目身份适配并校验；正常安装无需手动编辑配置。可用 `Verify Semantic Memory.cmd` 检查包与注册，`Open Memory Manager.cmd` 打开管理界面。自动检查通过后仍需在重启后的新聊天确认工具绑定。
+
+**中文 Windows 用户名或自定义安装目录：** 安装根须为 ASCII 字符，默认双击入口不会自动改选目录。请按 [自定义安装步骤](docs/INSTALL.zh-CN.md#升级已有版本) 指定可写的英文目录，设置当前用户 `SEMANTIC_MEMORY_HOME`，注销并重新登录 Windows 后再打开 Codex。中文工作区可以正常使用。
+
+早期 `semantic_memory_project_adapter_20261009.py` 且没有正式持久事务的用户，可经校验直接安装 R7.1；已启用正式 R6/R7 持久修复的用户先用原包回滚。详细判断与恢复路径见 [安装文档](docs/INSTALL.zh-CN.md)。每位使用者建立自己的本地记忆库，发布包不导入发布者记忆。没有相关历史时，召回为空是正常情况。记录成功、候选可召回、知识晋升、使用反馈是不同状态。
 
 ## 包含什么
 
@@ -45,7 +70,16 @@ Auditable local memory for Codex Desktop, with global recall across workspaces.
 
 ## 开源与可复现范围
 
-本仓库采用 MIT，保留原作者及第三方声明。核心源码来自 [AlbertYm/neuroplastic-memory-mcp](https://github.com/AlbertYm/neuroplastic-memory-mcp)，固定提交见 RELEASE.json，并同步作用域修复。
+本仓库是派生与集成工作，采用 MIT，保留原作者及第三方声明。源码继承链从早到晚如下；这是源码来源说明，不代表 GitHub 自动显示的 fork 关系，也不代表所有上游功能在当前包中默认启用。
+
+| 层次 | 仓库 | 贡献与关系 |
+| --- | --- | --- |
+| 原始代码引擎 | [DeusData/codebase-memory-mcp](https://github.com/DeusData/codebase-memory-mcp) | 原生代码索引、代码知识图、结构查询与 MCP 基础 |
+| 语义长期记忆 | [ZR113146/semantic-memory-mcp](https://github.com/ZR113146/semantic-memory-mcp) | 在代码引擎上增加 ADR 长期记忆与中文 CJK 全文检索 |
+| 直接上游：Neuroplastic Memory | [AlbertYm/neuroplastic-memory-mcp](https://github.com/AlbertYm/neuroplastic-memory-mcp) | 增加神经可塑性机制、路径审计、结果反馈和受控演化；本仓库 `core/` 的直接来源 |
+| 当前 Windows/Codex 分发 | [AlbertYm/semantic-memory-global](https://github.com/AlbertYm/semantic-memory-global) | 工作区/global 适配与持久注册、Windows 安装恢复，以及 R7 基于验证结果的选择、关联和可恢复维护 |
+
+直接上游固定提交为 [`0825fca6d25b63dfe865e5834a57878a11f8efef`](https://github.com/AlbertYm/neuroplastic-memory-mcp/tree/0825fca6d25b63dfe865e5834a57878a11f8efef)，由 [RELEASE.json](RELEASE.json) 记录。前三层的归属依据是该提交的 [AUTHORS.md](https://github.com/AlbertYm/neuroplastic-memory-mcp/blob/0825fca6d25b63dfe865e5834a57878a11f8efef/AUTHORS.md)，本地副本见 [core/AUTHORS.md](core/AUTHORS.md)；许可证与依赖声明见 [LICENSE](LICENSE) 和 [THIRD_PARTY.md](THIRD_PARTY.md)。此处标注实际源码继承，未将其他未核实的设计参考仓库列为源码上游。
 
 主运行时来自本仓库 Windows GitHub Actions 完整源码构建。上游固定源码缺少预编译版本中的 4 项 `neuroplastic_*` 控制器实现，因此另附经 SHA256 校验的 R6 兼容二进制，仅在调用这 4 项时启动，保留其原有独立授权、lease 和 fencing 限制。这个兼容组件尚未完成源码闭合；整个包没有逐字节可复现构建证明。详见架构文档。
 
