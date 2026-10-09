@@ -76,6 +76,7 @@ export type TabId =
   | "global-memory"
   | "topology"
   | "evolution"
+  | "learning"
   | "drift"
   | "tasks"
   | "recall"

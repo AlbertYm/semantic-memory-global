@@ -204,6 +204,8 @@ char *handle_memory_concept_review(cbm_mcp_server_t *srv, const char *args);
 char *handle_memory_concept_inspect(cbm_mcp_server_t *srv, const char *args);
 char *handle_memory_security_check(cbm_mcp_server_t *srv, const char *args);
 char *handle_memory_task_begin(cbm_mcp_server_t *srv, const char *args);
+char *handle_memory_learning_status(cbm_mcp_server_t *srv, const char *args);
+char *handle_memory_learning_control(cbm_mcp_server_t *srv, const char *args);
 char *handle_memory_task_status(cbm_mcp_server_t *srv, const char *args);
 char *handle_memory_task_complete(cbm_mcp_server_t *srv, const char *args);
 char *handle_memory_task_migrate(cbm_mcp_server_t *srv, const char *args);

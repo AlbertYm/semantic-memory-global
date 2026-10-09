@@ -211,7 +211,8 @@ static bool manager_rpc_tool_allowed(const cbm_http_req_t *req) {
     static const char *const allowed_tools[] = {
         "manager_global_overview", "manager_global_memory", "manager_global_topology",
         "manager_evolution", "manager_task_chain", "manager_drift_preview",
-        "manager_maintenance_preview", "manager_maintenance_control"
+        "manager_maintenance_preview", "manager_maintenance_control",
+        "memory_learning_status", "memory_learning_control"
     };
     yyjson_doc *doc = yyjson_read(req->body, req->body_len, 0);
     if (!doc) return false;

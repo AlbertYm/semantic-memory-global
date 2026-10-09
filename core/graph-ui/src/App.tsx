@@ -12,26 +12,29 @@ import { RecallPathPanel } from "./components/RecallPathPanel";
 import { MemoryInspectorTab } from "./components/MemoryInspectorTab";
 import { ReviewTab } from "./components/ReviewTab";
 import { OperationsTab } from "./components/OperationsTab";
+import { LearningTab } from "./components/LearningTab";
+import { callTool } from "./api/rpc";
+import type { GlobalOverview } from "./lib/types";
 import { DiagnosticsTab } from "./components/DiagnosticsTab";
 import type { TabId } from "./lib/types";
 
-const TAB_IDS: TabId[] = ["overview", "all-projects", "global-memory", "topology", "evolution", "drift", "tasks", "recall", "memory", "review", "operations", "diagnostics"];
-const DEFAULT_PROJECT = "H-Codex_H-neuroplastic-main";
+const TAB_IDS: TabId[] = ["overview", "all-projects", "global-memory", "topology", "evolution", "drift", "learning", "tasks", "recall", "memory", "review", "operations", "diagnostics"];
+const DEFAULT_PROJECT = "";
 
 const labels = {
-  zh: { overview: "概览", "all-projects": "所有项目", "global-memory": "全局记忆", topology: "跨项目拓扑", evolution: "演化记录", drift: "漂移与维护", tasks: "任务", recall: "召回路径", memory: "Memory", review: "审核", operations: "备份恢复", diagnostics: "诊断" },
-  en: { overview: "Overview", "all-projects": "All Projects", "global-memory": "Global Memory", topology: "Topology", evolution: "Evolution", drift: "Drift & Maintenance", tasks: "Tasks", recall: "Recall", memory: "Memory", review: "Review", operations: "Backup", diagnostics: "Diagnostics" },
+  zh: { overview: "概览", "all-projects": "所有项目", "global-memory": "全局记忆", topology: "跨项目拓扑", evolution: "演化记录", drift: "漂移与维护", learning: "自动学习", tasks: "任务", recall: "召回路径", memory: "Memory", review: "审核", operations: "备份恢复", diagnostics: "诊断" },
+  en: { overview: "Overview", "all-projects": "All Projects", "global-memory": "Global Memory", topology: "Topology", evolution: "Evolution", drift: "Drift & Maintenance", learning: "Learning", tasks: "Tasks", recall: "Recall", memory: "Memory", review: "Review", operations: "Backup", diagnostics: "Diagnostics" },
 };
 
 const icons: Record<TabId, LucideIcon> = {
-  overview: Activity, tasks: ListChecks, recall: Share2, memory: Database,
+  learning: Sparkles, overview: Activity, tasks: ListChecks, recall: Share2, memory: Database,
   review: BrainCircuit, operations: Archive, diagnostics: Settings,
   "all-projects": GitBranch, "global-memory": Sparkles, topology: Network, evolution: Activity, drift: Wrench,
 };
 
 function initialTab(): TabId {
   const value = new URLSearchParams(window.location.search).get("tab") as TabId | null;
-  return value && TAB_IDS.includes(value) ? value : "overview";
+  return value && TAB_IDS.includes(value) ? value : "all-projects";
 }
 
 export function App() {
@@ -39,6 +42,15 @@ export function App() {
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   const [project, setProject] = useState(params.get("project") || DEFAULT_PROJECT);
   const [language, setLanguage] = useState<"zh" | "en">("zh");
+
+  useEffect(() => {
+    if (project) return;
+    let current = true;
+    void callTool<{ item: GlobalOverview }>("manager_global_overview").then(result => {
+      if (current && result.item?.projects?.length) setProject(result.item.projects[0].project_uuid);
+    }).catch(() => undefined);
+    return () => { current = false; };
+  }, [project]);
 
   useEffect(() => {
     const next = new URLSearchParams();
@@ -73,6 +85,7 @@ export function App() {
           {activeTab === "topology" && <CrossProjectTopologyTab />}
           {activeTab === "evolution" && <EvolutionTimelineTab />}
           {activeTab === "drift" && <DriftRepairTab />}
+          {activeTab === "learning" && <LearningTab project={project} />}
           {activeTab === "tasks" && <SessionsTab project={project} />}
           {activeTab === "recall" && <RecallPathPanel project={project} />}
           {activeTab === "memory" && <MemoryInspectorTab project={project} />}

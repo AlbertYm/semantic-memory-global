@@ -104,7 +104,7 @@ class Repair:
         self.db = Path(mmcapi_db).resolve() if mmcapi_db else None
         self.desired = {"command": str(Path(python_exe or sys.executable).resolve()),
                         "args": ["-I", "-u", str(self.adapter), "--core", str(self.core), "--data-root", str(self.root/"data")],
-                        "enabled": True, "env": {"CBM_DATA_ROOT": str(self.root/"data"), "CBM_MEMORY_EMBED_BACKEND": "static", "CBM_MEMORY_AUTO_MAINTAIN": "0"}}
+                        "enabled": True, "env": {"CBM_DATA_ROOT": str(self.root/"data"), "CBM_MEMORY_EMBED_BACKEND": "static", "CBM_MEMORY_AUTO_MAINTAIN": "0", "CBM_VERIFIED_LEARNING": "1"}}
 
     def protected(self):
         paths = [self.codex_home/"auth.json", self.user_home/".mmcapi/settings.json", self.user_home/".mmcapi/codex_oauth_auth.json"]

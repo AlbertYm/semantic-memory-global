@@ -11,6 +11,7 @@
 #include "mcp/mcp.h"
 #include "store/store.h"
 #include "memory/memory_store.h"
+#include "memory/verified_learning.h"
 #include "memory/memory_security.h"
 #include "memory/memory_orchestrator.h"
 #include "memory/global_memory.h"
@@ -167,6 +168,8 @@ static bool memory_tool_scope_guarded(const char *tool_name) {
         "adr_chain",
         "memory_task_begin",
         "memory_task_status",
+        "memory_learning_status",
+        "memory_learning_control",
         "memory_task_complete",
         "memory_task_migrate",
     };
@@ -2754,6 +2757,33 @@ char *handle_memory_concept_review(cbm_mcp_server_t *srv, const char *args) {
     free(content_text);
     free(related_candidate_id);
     return result;
+}
+
+char *handle_memory_learning_status(cbm_mcp_server_t *srv, const char *args) {
+    char *project=cbm_mcp_get_string_arg(args,"project");
+    cbm_store_t *store=project ? memory_stage14_store(srv,project,false):NULL;
+    char uuid[CBM_PROJECT_UUID_SIZE]={0};
+    const char *identity=store ? memory_stage14_project_identity(store,project,uuid):NULL;
+    char *json=identity ? cbm_learning_status(store,identity):NULL;
+    char *result=json ? cbm_mcp_text_result(json,false):mcp_stage10_error("LEARNING_UNAVAILABLE");
+    free(json);free(project);return result;
+}
+
+char *handle_memory_learning_control(cbm_mcp_server_t *srv, const char *args) {
+    char *project=cbm_mcp_get_string_arg(args,"project");
+    char *action=cbm_mcp_get_string_arg(args,"action");
+    char *id=cbm_mcp_get_string_arg(args,"item_id");
+    char *key=cbm_mcp_get_string_arg(args,"idempotency_key");
+    yyjson_doc *doc=yyjson_read(args,strlen(args),0);
+    yyjson_val *generation=doc ? yyjson_obj_get(yyjson_doc_get_root(doc),"expected_generation"):NULL;
+    cbm_store_t *store=project ? memory_stage14_store(srv,project,true):NULL;
+    char uuid[CBM_PROJECT_UUID_SIZE]={0};
+    const char *identity=store ? memory_stage14_project_identity(store,project,uuid):NULL;
+    int rc=identity && action && key && yyjson_is_int(generation) && yyjson_get_sint(generation)>=0
+        ? cbm_learning_control(store,identity,action,id,key,(int)yyjson_get_sint(generation),0):CBM_STORE_REJECTED;
+    char *json=(rc==CBM_STORE_OK || rc==CBM_STORE_REPLAYED) ? cbm_learning_status(store,identity):NULL;
+    char *result=json ? cbm_mcp_text_result(json,false):mcp_stage10_error("LEARNING_CONTROL_CONFLICT");
+    free(json);free(project);free(action);free(id);free(key);yyjson_doc_free(doc);return result;
 }
 
 char *handle_memory_concept_inspect(cbm_mcp_server_t *srv, const char *args) {

@@ -1,4 +1,5 @@
 #include "memory/memory_orchestrator.h"
+#include "memory/verified_learning.h"
 
 #include "store/store.h"
 #include "yyjson/yyjson.h"
@@ -684,6 +685,12 @@ int cbm_orchestrator_record_evidence(cbm_store_t *store, const cbm_task_evidence
              "task=%s;result=%s;result_hash=%s;evidence=%s;evidence_hash=%s;trust=%s;source=%s",
              input->task_id, input->result_id, input->result_hash, input->evidence_id,
              input->evidence_hash, trust, source);
+    const char *result_status = input->result_status ? input->result_status : "succeeded";
+    if (strcmp(result_status,"succeeded") && strcmp(result_status,"failed")) return CBM_STORE_REJECTED;
+    if (input->result_status) {
+        size_t length=strlen(payload);
+        snprintf(payload+length,sizeof(payload)-length,";status=%s",result_status);
+    }
     char payload_hash[65], task_buf[80] = {0};
     if (s12_hash(payload, payload_hash) != CBM_STORE_OK)
         return CBM_STORE_ERR;
@@ -731,12 +738,13 @@ int cbm_orchestrator_record_evidence(cbm_store_t *store, const cbm_task_evidence
             db,
             "INSERT INTO "
             "memory_task_result(result_id,task_id,result_type,status,result_ref,result_hash,"
-            "recorded_at) VALUES(?1,?2,'runtime','succeeded','stage12:sha256-only',?3,?4);",
+            "recorded_at) VALUES(?1,?2,'runtime',?5,'stage12:sha256-only',?3,?4);",
             -1, &stmt, NULL) == SQLITE_OK) {
         sqlite3_bind_text(stmt, 1, input->result_id, -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(stmt, 2, input->task_id, -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(stmt, 3, input->result_hash, -1, SQLITE_TRANSIENT);
         sqlite3_bind_text(stmt, 4, timestamp, -1, SQLITE_TRANSIENT);
+        sqlite3_bind_text(stmt, 5, result_status, -1, SQLITE_TRANSIENT);
         rc = sqlite3_step(stmt) == SQLITE_DONE ? CBM_STORE_OK : CBM_STORE_ERR;
     } else
         rc = CBM_STORE_ERR;
@@ -1173,6 +1181,7 @@ int cbm_orchestrator_complete(cbm_store_t *store, const cbm_task_complete_input_
         rc = s12_exec(db, "COMMIT;");
     else
         s12_exec(db, "ROLLBACK;");
+    if (rc == CBM_STORE_OK) (void)cbm_learning_refresh(store, 0);
     const char *code =
         rc == CBM_STORE_OK
             ? "OK"

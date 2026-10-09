@@ -86,6 +86,7 @@ $env:CBM_CACHE_DIR=Join-Path $InstallRoot 'data'
 $env:CBM_ARTIFACT_DIR=Join-Path $InstallRoot 'data\artifacts'
 $env:CBM_MEMORY_EMBED_BACKEND='static'
 $env:CBM_MEMORY_AUTO_MAINTAIN='0'
+if (-not $env:CBM_VERIFIED_LEARNING) { $env:CBM_VERIFIED_LEARNING='1' }
 
 $arguments=@()
 if($Mode-eq'manager'){$arguments=@('manager')}

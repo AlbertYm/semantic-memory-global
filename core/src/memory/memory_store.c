@@ -10,6 +10,7 @@
  */
 
 #include "memory/memory_store.h"
+#include "memory/verified_learning.h"
 #include "memory/edge_lifecycle.h"
 #include "memory/memory_security.h"
 #include "foundation/constants.h"
@@ -3685,7 +3686,7 @@ static int memory_append_vector_candidates(cbm_store_t *s, const cbm_memory_quer
         "(?6 IS NULL OR m.kind=?6) AND (?7 != 0 OR m.status IN ('active','candidate')) "
         "AND m.deleted_at IS NULL "
         "ORDER BY vscore DESC, (m.importance + m.confidence + m.reusability + m.specificity + "
-        "m.hit_count - m.decay) DESC "
+        "MIN(m.hit_count,3)*0.01 - m.decay) DESC "
         "LIMIT ?8;";
     sqlite3_stmt *stmt = NULL;
     if (sqlite3_prepare_v2(s->db, sql, CBM_NOT_FOUND, &stmt, NULL) != SQLITE_OK) {
@@ -3724,6 +3725,7 @@ static int memory_retrieve_vector_only(cbm_store_t *s, const cbm_memory_query_t 
     (void)memory_append_graph_candidates(s, query, out, &cap, limit > 0 ? limit * 3 : 30);
     memory_filter_safety_fixtures(query, out);
     memory_apply_anchor_boost(s, query, out);
+    cbm_learning_rank(s, out);
     memory_resolve_conflicts(s, query, out, limit);
     memory_fill_result_evidence(s, out);
     return memory_stage6_after_stage5(s, query, out, limit);
@@ -3794,6 +3796,7 @@ static int memory_token_overlap(const char *seg_query, const char *content, doub
 
 int cbm_store_memory_retrieve(cbm_store_t *s, const cbm_memory_query_t *query,
                               cbm_memory_result_t *out) {
+    (void)cbm_learning_refresh(s, 0);
     memset(out, 0, sizeof(*out));
     if (!s || !s->db) {
         return CBM_STORE_ERR;
@@ -3952,6 +3955,7 @@ int cbm_store_memory_retrieve(cbm_store_t *s, const cbm_memory_query_t *query,
         (void)memory_append_graph_candidates(s, query, out, &cap, limit > 0 ? limit * 3 : 30);
         memory_filter_safety_fixtures(query, out);
         memory_apply_anchor_boost(s, query, out);
+    cbm_learning_rank(s, out);
         memory_resolve_conflicts(s, query, out, limit);
         memory_fill_result_evidence(s, out);
         return memory_stage6_after_stage5(s, query, out, limit);
@@ -3967,7 +3971,7 @@ int cbm_store_memory_retrieve(cbm_store_t *s, const cbm_memory_query_t *query,
         "(?3 IS NULL OR scope_task=?3 OR scope_task IS NULL) AND (?4 IS NULL OR entity_key=?4) AND "
         "(?5 IS NULL OR kind=?5) AND (?6 != 0 OR status IN ('active','candidate')) "
         "AND deleted_at IS NULL "
-        "ORDER BY (importance + confidence + reusability + specificity + hit_count - decay) DESC, "
+        "ORDER BY (importance + confidence + reusability + specificity + MIN(hit_count,3)*0.01 - decay) DESC, "
         "updated_at DESC "
         "LIMIT %d;",
         memory_select_cols, limit > 0 ? limit * 4 : 40);
@@ -3990,7 +3994,7 @@ int cbm_store_memory_retrieve(cbm_store_t *s, const cbm_memory_query_t *query,
         items[n].retrieval_source = heap_strdup("structured");
         items[n].retrieval_score = items[n].importance + items[n].confidence +
                                    items[n].reusability + items[n].specificity +
-                                   items[n].hit_count - items[n].decay;
+                                   fmin(items[n].hit_count,3)*0.01 - items[n].decay;
         n++;
     }
     sqlite3_finalize(stmt);
@@ -3999,6 +4003,7 @@ int cbm_store_memory_retrieve(cbm_store_t *s, const cbm_memory_query_t *query,
     out->total = n;
     memory_filter_safety_fixtures(query, out);
     memory_apply_anchor_boost(s, query, out);
+    cbm_learning_rank(s, out);
     memory_resolve_conflicts(s, query, out, limit);
     memory_fill_result_evidence(s, out);
     return memory_stage6_after_stage5(s, query, out, limit);

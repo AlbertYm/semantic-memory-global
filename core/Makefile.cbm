@@ -181,7 +181,7 @@ SQLITE_WRITER_SRC = $(CBM_DIR)/sqlite_writer.c
 STORE_SRCS = src/store/store.c src/store/embed.c
 
 # Memory module (local-fork ADR/memory extensions, extracted from store.c)
-MEMORY_SRCS = src/memory/memory_store.c src/memory/memory_observe.c src/memory/memory_security.c src/memory/memory_orchestrator.c src/memory/edge_lifecycle.c src/memory/concept_growth.c src/memory/project_resolver.c src/memory/global_memory.c src/memory/evolution_engine.c
+MEMORY_SRCS = src/memory/verified_learning.c src/memory/memory_store.c src/memory/memory_observe.c src/memory/memory_security.c src/memory/memory_orchestrator.c src/memory/edge_lifecycle.c src/memory/concept_growth.c src/memory/project_resolver.c src/memory/global_memory.c src/memory/evolution_engine.c
 
 # Cypher module (new)
 CYPHER_SRCS = src/cypher/cypher.c
@@ -613,7 +613,7 @@ test: $(BUILD_DIR)/test-runner
 	cd $(CURDIR) && $(BUILD_DIR)/test-runner
 
 STAGE10_MEMORY_TEST_SRCS = $(TEST_MEM_LTM_SRCS) src/store/store.c src/store/embed.c \
-	src/memory/memory_store.c src/memory/memory_observe.c src/memory/memory_security.c src/memory/edge_lifecycle.c \
+	src/memory/verified_learning.c src/memory/memory_store.c src/memory/memory_observe.c src/memory/memory_security.c src/memory/edge_lifecycle.c \
 	src/memory/concept_growth.c src/foundation/compat_regex.c src/foundation/arena.c \
 	src/foundation/str_util.c src/foundation/log.c src/foundation/platform.c \
 	src/foundation/compat.c src/foundation/mem.c src/foundation/str_intern.c \
@@ -640,6 +640,12 @@ $(BUILD_DIR)/test-orchestrator-stage12: $(STAGE12_ORCHESTRATOR_TEST_SRCS) $(STAG
 
 test-orchestrator-stage12: $(BUILD_DIR)/test-orchestrator-stage12
 	cd $(CURDIR) && $(BUILD_DIR)/test-orchestrator-stage12
+
+$(BUILD_DIR)/test-verified-learning: tests/test_verified_learning.c $(filter-out $(TEST_MEM_LTM_SRCS),$(STAGE10_MEMORY_TEST_SRCS)) src/memory/memory_orchestrator.c $(STAGE10_MEMORY_TEST_OBJS) | $(BUILD_DIR)
+	$(CC) $(CFLAGS_TEST) -Itests -o $@ tests/test_verified_learning.c $(filter-out $(TEST_MEM_LTM_SRCS),$(STAGE10_MEMORY_TEST_SRCS)) src/memory/memory_orchestrator.c $(STAGE10_MEMORY_TEST_OBJS) $(LDFLAGS_TEST)
+
+test-verified-learning: $(BUILD_DIR)/test-verified-learning
+	cd $(CURDIR) && $(BUILD_DIR)/test-verified-learning
 
 STAGE14_GLOBAL_TEST_SRCS = tests/test_stage14_global.c \
 	$(filter-out $(TEST_MEM_LTM_SRCS),$(STAGE10_MEMORY_TEST_SRCS)) \

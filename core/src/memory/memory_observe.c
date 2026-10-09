@@ -1,6 +1,7 @@
 /* Stage 5 observe-only retrieval, injection, and usage journal. */
 
 #include "memory/memory_store.h"
+#include "memory/verified_learning.h"
 #include "memory/memory_security.h"
 #include "foundation/platform.h"
 #include "store/store.h"
@@ -1417,6 +1418,7 @@ int cbm_store_memory_feedback_observe(cbm_store_t *s, const cbm_feedback_observe
     if (rc != CBM_STORE_OK) {
         cbm_store_rollback(s);
     } else {
+        (void)cbm_learning_refresh(s, 0);
         out->event_id = obs_dup(input->event_id);
         out->canonical_payload_sha256 = obs_dup(canonical_hash);
         out->result_json = obs_dup(result_json);

@@ -5,6 +5,7 @@
 #include "memory/global_memory.h"
 #include "memory/memory_orchestrator.h"
 #include "memory/memory_store.h"
+#include "memory/verified_learning.h"
 #include "store/store.h"
 #include "yyjson/yyjson.h"
 
@@ -135,13 +136,15 @@ int cbm_cmd_memory_post_tool(void) {
              key_hashed ? tool_key_hash : "invalid");
     snprintf(idempotency_key, sizeof(idempotency_key), "post-tool-%s",
              key_hashed ? tool_key_hash : "invalid");
+    int outcome = cbm_learning_tool_outcome(tool_name, output_json);
     cbm_task_evidence_input_t evidence = {
         .task_id = task_id,
         .result_id = result_id,
         .result_hash = output_hash,
         .evidence_id = evidence_id,
         .evidence_hash = evidence_hash,
-        .evidence_trust = "model_self_report",
+        .evidence_trust = outcome >= 0 ? "external_verified" : "model_self_report",
+        .result_status = outcome == 1 ? "failed" : "succeeded",
         .evidence_source = "runtime",
         .idempotency_key = idempotency_key,
     };
@@ -149,6 +152,10 @@ int cbm_cmd_memory_post_tool(void) {
     int rc = hashed && key_hashed && evidence_hashed && task_id[0]
                  ? cbm_global_task_record_evidence(global, &evidence, &report)
                  : CBM_STORE_ERR;
+    if ((rc == CBM_STORE_OK || rc == CBM_STORE_REPLAYED) && outcome >= 0) {
+        int receipt_rc = cbm_learning_record_receipt(cbm_global_memory_store(global), evidence_id, output_hash, outcome);
+        if (receipt_rc != CBM_STORE_OK && receipt_rc != CBM_STORE_REJECTED) rc = receipt_rc;
+    }
     free(report);
     free(input_json);
     free(output_json);

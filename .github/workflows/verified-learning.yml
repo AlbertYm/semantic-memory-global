@@ -1,0 +1,40 @@
+name: Verified learning Windows
+on:
+  push:
+    branches: [verified-learning-r7]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
+      - uses: msys2/setup-msys2@66cd2cce69caa17b53920067426061ca1de3a884
+        with:
+          msystem: CLANG64
+          path-type: inherit
+          install: mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-zlib make
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+        with:
+          node-version: '22'
+      - name: Learning and orchestrator tests
+        shell: msys2 {0}
+        run: |
+          cd core
+          make -j4 -f Makefile.cbm test-verified-learning test-orchestrator-stage12 CC=clang CXX=clang++ SANITIZE=
+      - name: Build frontend and native core
+        shell: msys2 {0}
+        run: |
+          cd core
+          scripts/build.sh --with-ui CC=clang CXX=clang++
+      - name: Artifact smoke
+        shell: pwsh
+        run: python -X utf8 tests/test_learning_runtime.py --runtime core/build/c/semantic-memory-mcp.exe
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: verified-learning-windows-x64
+          path: |
+            core/build/c/semantic-memory-mcp.exe
+            build/learning-runtime-evidence.json

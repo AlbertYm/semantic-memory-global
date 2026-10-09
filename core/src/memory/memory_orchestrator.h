@@ -31,6 +31,7 @@ typedef struct {
     const char *evidence_hash;
     const char *evidence_trust;
     const char *evidence_source;
+    const char *result_status; /* Hook verified exit status; NULL preserves old succeeded default. */
     const char *idempotency_key;
 } cbm_task_evidence_input_t;
 

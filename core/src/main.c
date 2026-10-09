@@ -666,6 +666,9 @@ static bool stage14_set_runtime_environment(const wchar_t *install_root) {
         return false;
     }
     (void)SetEnvironmentVariableW(L"CBM_MEMORY_NO_GLOBAL_UNION", NULL);
+    if (GetEnvironmentVariableW(L"CBM_VERIFIED_LEARNING", NULL, 0) == 0) {
+        if (!SetEnvironmentVariableW(L"CBM_VERIFIED_LEARNING", L"1")) return false;
+    }
     if (!SetEnvironmentVariableW(L"CBM_MEMORY_AUTO_MAINTAIN", L"0")) {
         return false;
     }

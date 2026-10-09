@@ -913,6 +913,13 @@ static const tool_def_t TOOLS[] = {
      "\"required\":[\"project\",\"session_id\",\"turn_id\",\"prompt_sha256\",\"prompt_length\","
      "\"scope\",\"idempotency_key\"]}"},
 
+    {"memory_learning_status", "Inspect evidence-based automatic learning",
+     "Read bounded utility, co-use associations, recoverable archives and controller state. Requires a registered project anchor; never writes.",
+     "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"project\":{\"type\":\"string\"}},\"required\":[\"project\"]}"},
+    {"memory_learning_control", "Pause, resume or restore automatic learning",
+     "Use generation CAS and an idempotency key. Restore only the exact controller archive version; never overwrite later user edits.",
+     "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{\"project\":{\"type\":\"string\"},\"action\":{\"type\":\"string\",\"enum\":[\"pause\",\"resume\",\"restore\"]},\"item_id\":{\"type\":\"string\"},\"idempotency_key\":{\"type\":\"string\"},\"expected_generation\":{\"type\":\"integer\",\"minimum\":0}},\"required\":[\"project\",\"action\",\"idempotency_key\",\"expected_generation\"]}"},
+
     {"memory_task_status", "Read one Codex task lifecycle and bounded evidence",
      "Read the latest append-only lifecycle state and up to sixteen hash-only evidence rows. "
      "Address by task_id or by session_id plus turn_id. This tool never writes.",
@@ -927,7 +934,7 @@ static const tool_def_t TOOLS[] = {
      "Append a completed, failed, or cancelled outcome. Feedback attribution is accepted only for "
      "memory items recalled by this task and used/rejected/contradicted attribution requires "
      "linked "
-     "task evidence. Plasticity remains observe-only.",
+     "task evidence. Verified learning uses independent bounded credit when enabled.",
      "{\"type\":\"object\",\"additionalProperties\":false,\"properties\":{"
      "\"project\":{\"type\":\"string\"},\"task_id\":{\"type\":\"string\"},"
      "\"outcome\":{\"type\":\"string\",\"enum\":[\"completed\",\"failed\",\"cancelled\"]},"
@@ -7049,6 +7056,8 @@ char *cbm_mcp_handle_tool(cbm_mcp_server_t *srv, const char *tool_name, const ch
     if (strcmp(tool_name, "memory_task_begin") == 0) {
         return handle_memory_task_begin(srv, args_json);
     }
+    if (strcmp(tool_name, "memory_learning_status") == 0) return handle_memory_learning_status(srv, args_json);
+    if (strcmp(tool_name, "memory_learning_control") == 0) return handle_memory_learning_control(srv, args_json);
     if (strcmp(tool_name, "memory_task_status") == 0) {
         return handle_memory_task_status(srv, args_json);
     }

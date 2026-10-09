@@ -27,7 +27,7 @@ const taskResponse = {
 
 describe("Stage12 manager shell", () => {
   beforeEach(() => {
-    window.history.replaceState(null, "", "/#token=" + "a".repeat(64));
+    window.history.replaceState(null, "", "/?tab=overview&project=H-Codex_H-neuroplastic-main#token=" + "a".repeat(64));
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => new Response(JSON.stringify(String(input).includes("/tasks") ? taskResponse : health), { status: 200 })));
   });
 
@@ -35,7 +35,7 @@ describe("Stage12 manager shell", () => {
     render(<App />);
     await waitFor(() => expect(screen.getByText("v0.12.0-beta.1")).toBeInTheDocument());
     const viewNames = ["概览", "所有项目", "全局记忆", "跨项目拓扑", "演化记录", "漂移与维护", "任务", "召回路径", "Memory", "审核", "备份恢复", "诊断"];
-    expect(screen.getByRole("navigation").querySelectorAll("button")).toHaveLength(12);
+    expect(screen.getByRole("navigation").querySelectorAll("button")).toHaveLength(13);
     for (const name of viewNames) expect(screen.getByRole("button", { name })).toBeInTheDocument();
     expect(screen.queryByText(/kill|结束进程/i)).not.toBeInTheDocument();
   });
