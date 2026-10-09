@@ -6,6 +6,8 @@ Auditable local memory for Codex Desktop, with global recall across workspaces.
 
 **当前发布：R5 / `1.1.0-rc.1+codex.20261005112500`。** 原生核心版本 `v1.1.0-rc.1`，兼容修订 `global-scope-local-r2`。完整版本和哈希以 [RELEASE.json](RELEASE.json) 为准。
 
+**主分支另包含 2026-10-08/09 的未发布维护修复。** 已安装 R5 的用户可从仓库的 `packaging/windows` 运行 `Repair Persistent Codex Memory.cmd`：同步 Codex/MMCAPI 保存的 MCP 注册、清理仅供 Codex 使用的旧 `type` 字段，并启用只读项目身份适配。此可选入口要求 Python 3.11+；已发布的 R5 ZIP 和原生安装依赖未改变。使用与回滚见安装文档的“持久注册与项目身份修复”。
+
 - [下载 Windows 完整发布包](https://github.com/AlbertYm/semantic-memory-global/releases/latest)
 - [安装、升级、验证和卸载](docs/INSTALL.zh-CN.md)
 - [详细功能和日常使用](docs/FUNCTIONS.zh-CN.md)
@@ -26,7 +28,8 @@ Auditable local memory for Codex Desktop, with global recall across workspaces.
 
 | 组件 | 用途 |
 | --- | --- |
-| 原生 MCP | 事件记录、记忆召回、任务生命周期、证据和反馈，以及代码图查询，共 19 个当前专用工具 |
+| 原生 MCP | 事件记录、记忆召回、任务生命周期、证据和反馈，以及代码图查询；工具表分页，19 项是首个分页的历史数量 |
+| 可选项目身份适配 | 新增 `memory_resolve_project`，解析已登记工作区/任务的 UUID；唯一匹配的旧目录名可兼容，原生内容与作用域检查保留 |
 | Codex Personal Plugin | `UserPromptSubmit` 召回、`PostToolUse` hash-only 证据、受控 `Stop` 收尾、记忆 Skill |
 | Memory Manager | 原生本地管理入口；完整 GUI/DPI 行为需在目标电脑自行验收 |
 | Windows 安装器 | 用户级安装、已有受管理版本升级、配置修复、文件校验与保留数据卸载 |

@@ -10,6 +10,13 @@ $ErrorActionPreference = 'Stop'
 if (-not $InstallRoot) { $InstallRoot = Join-Path $env:LOCALAPPDATA 'SemanticMemory' }
 if (-not $CodexHome) { $CodexHome = Join-Path $UserHome '.codex' }
 Assert-SmCodexDesktopStopped -UserHome $UserHome -AllowRunningCodexForIsolatedTest:$AllowRunningCodexForIsolatedTest
+if (Test-Path -LiteralPath (Join-Path $InstallRoot 'codex-memory-repair-state.json') -PathType Leaf) {
+    & (Join-Path $PSScriptRoot 'Repair-Codex-Memory.ps1') -Mode Apply -UserHome $UserHome -InstallRoot $InstallRoot -CodexHome $CodexHome -AllowRunningCodexForIsolatedTest:$AllowRunningCodexForIsolatedTest
+    if ($LASTEXITCODE -ne 0) { throw 'Persistent MCP repair did not verify.' }
+    & (Join-Path $PSScriptRoot 'Verify-Bundle.ps1') -UserHome $UserHome -InstallRoot $InstallRoot -CodexHome $CodexHome
+    if ($LASTEXITCODE -ne 0) { throw 'Persistent repair verification failed.' }
+    return
+}
 $statePath = Join-Path $InstallRoot 'install-bundle-state.json'
 if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) { throw 'Bundle state is missing. Run Install Semantic Memory.cmd for a first install.' }
 $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json

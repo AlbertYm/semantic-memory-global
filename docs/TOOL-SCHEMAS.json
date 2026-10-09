@@ -78,5 +78,28 @@
       "name": "search_graph",
       "description": "Search the code knowledge graph for functions, classes, routes, and variables. Use INSTEAD OF grep/glob when finding code definitions, implementations, or relationships. Three search modes: (1) query='update settings' for BM25 ranked full-text search with camelCase splitting and structural label boosting — recommended for natural-language discovery; (2) name_pattern='.*regex.*' for exact pattern matching; (3) semantic_query=[...] for vector cosine search that bridges vocabulary (finds 'publish' when you search 'send'). The three modes are independent and can be combined in a single call. PAGINATION: results are capped at limit (default 200) — broader queries are silently truncated. The response always includes 'total' (full match count before limit) and 'has_more' (true when total > offset+returned). Detect truncation with has_more, then page by re-calling with offset=offset+limit until has_more is false. Narrow first via label/file_pattern/min_degree before paginating large result sets.\n\nexec tool declaration:\n```ts\ndeclare const tools: { mcp__semantic_memory__search_graph(args: {\n  exclude_entry_points?: boolean;\n  file_pattern?: string;\n  include_connected?: boolean;\n  label?: string;\n  // Max results per call. Default 200. Response carries 'total' (full match count) and 'has_more' (true if truncated) so callers can detect the limit and paginate.\n  limit?: number;\n  max_degree?: number;\n  min_degree?: number;\n  name_pattern?: string;\n  // Skip the first N matching nodes. Combine with 'limit' to page: increment offset by limit and re-call while has_more is true.\n  offset?: number;\n  project: string;\n  qn_pattern?: string;\n  // Natural-language or keyword full-text search using BM25 ranking. Tokens are split on whitespace; camelCase identifiers are indexed as individual words (updateCloudClient → update, cloud, client). Results are ranked with structural boosting: Functions/Methods +10, Routes +8, Classes/Interfaces +5. Noise labels (File/Folder/Module/Variable) are filtered out. When provided, name_pattern is ignored.\n  query?: string;\n  relationship?: string;\n  // MUST be an ARRAY of keyword strings (e.g. [\"send\",\"pubsub\",\"publish\"]) — NOT a single string. Each keyword is scored independently via per-keyword min-cosine; results reflect functions that score well on ALL keywords. Requires moderate/full index mode. Results appear in the 'semantic_results' field (separate from 'results').\n  semantic_query?: Array<string>;\n}): Promise<CallToolResult<{ [key: string]: unknown; }>>; };\n```"
     }
-  ]
+  ],
+  "snapshot_note": "Historical native first-page capture; follow live tools/list pagination. Optional main-branch project adapter updates project guidance and advertises memory_resolve_project on the last page.",
+  "optional_adapter_tool": {
+    "name": "memory_resolve_project",
+    "description": "Read-only resolution of a registered Semantic Memory workspace or task to its project UUID. Does not index code, create a workspace, or write memory. Supply exactly one of workspace (actual absolute cwd), task_id (active task), or project (known UUID/legacy path name).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "workspace": {
+          "type": "string",
+          "description": "Actual absolute workspace directory; never guess a host name."
+        },
+        "task_id": {
+          "type": "string",
+          "description": "Existing task id provided by the active lifecycle hook."
+        },
+        "project": {
+          "type": "string",
+          "description": "Existing UUID or registered path-derived legacy project name."
+        }
+      },
+      "additionalProperties": false
+    }
+  }
 }

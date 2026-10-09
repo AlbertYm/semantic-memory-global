@@ -2,6 +2,9 @@
 param([string]$InstallRoot,[switch]$AllowRunningCodexForIsolatedTest)
 $ErrorActionPreference = 'Stop'
 if (-not $InstallRoot) { $InstallRoot = Join-Path $env:LOCALAPPDATA 'SemanticMemory' }
+if (Test-Path -LiteralPath (Join-Path $InstallRoot 'codex-memory-repair-state.json') -PathType Leaf) {
+    throw 'PERSISTENT_REPAIR_ACTIVE: Roll back the persistent Codex memory repair before native uninstall. No uninstall changes made.'
+}
 $statePath = Join-Path $InstallRoot 'install-bundle-state.json'
 if (-not (Test-Path -LiteralPath $statePath -PathType Leaf)) { throw 'Bundle state was not found. Refusing to guess the uninstall scope.' }
 $state = Get-Content -LiteralPath $statePath -Raw -Encoding UTF8 | ConvertFrom-Json

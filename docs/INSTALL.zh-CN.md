@@ -62,7 +62,32 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Uninstall-Bundle.ps1 -
 
 已经安装相同包时重新运行入口进入配置 Repair。`Repair Semantic Memory MCP.cmd` 修复受管理注册；它不能替代缺失的新运行时升级。
 
-## 验证
+## 持久注册与项目身份修复（主分支，未发布）
+
+2026-10-08/09 的维护代码位于仓库 `packaging/windows`，尚未打进 Releases 的 R5 ZIP。它供已有受管理运行时使用；首次安装仍先按 R5 的步骤完成原生安装。
+
+1. 安装 Python 3.11 或更高版本，确保 `python.exe` 可用。这个可选维护入口使用 Python 标准库，不下载依赖；R5 原生安装流程仍不要求 Python。
+2. 保存工作，正常退出 Codex 和 Memory Manager。在仓库的 `packaging/windows` 双击 `Repair Persistent Codex Memory.cmd`。
+3. 修复先核对已安装核心的哈希，创建仅当前用户和 SYSTEM 可访问的事务备份，然后更新当前 Codex 配置。如果当前用户存在 `.mmcapi/mmcapi.db`，同步 Codex 专用登记、公共配置、全部 Codex 供应商模板及已有代理恢复快照；模型、服务地址、认证字段及其他应用的登记保留。共享给其他应用的旧传输字段会保护性拒绝，要求人工核对。
+4. 双击 `Verify Persistent Codex Memory.cmd` 查看持久来源与适配文件验证。重新打开 Codex，在新聊天调用 `memory_resolve_project`，传入实际绝对工作目录或 Hook 提供的当前 `task_id`，将返回的 `project_uuid` 用于记忆调用。`scope="global"` 仍要求有效项目审计锚点。
+
+已索引代码项目与已登记记忆工作区不同；`list_projects` 为空不表示没有工作区。适配只将唯一匹配的已登记目录名或兼容别名转换为 UUID；未知名称、歧义、路径穿越和非法 scope 不会获得授权。原生核心继续执行秘密和提示注入检查。核心 EXE、Hook、数据表结构和演化开关不变。
+
+自定义根、独立 Codex 配置或显式配置管理器数据库可使用：
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Repair-Codex-Memory.ps1 -Mode Apply -InstallRoot D:\SemanticMemory -CodexHome D:\CodexProfile -MmcapiDatabase D:\ConfigManager\mmcapi.db -PythonExe D:\Python\python.exe
+```
+
+没有指定 `-MmcapiDatabase` 且使用独立 `CodexHome` 时，不会自动操作真实用户的 MMCAPI 数据库；仅修复所选 Codex 配置。日常模型切换和登录刷新不影响验证，真正的适配/登记漂移会返回错误。重复运行已验证的修复返回 `REPLAYED_ZERO_WRITE`。
+
+回滚用 `Rollback Persistent Codex Memory.cmd`，或在同一组目录参数下运行 `Repair-Codex-Memory.ps1 -Mode Rollback`。需要选择历史事务时传 `-TransactionPath <备份事务目录>`。回滚逐项核对当前配置和来源行，发现后续变更会停止；它不会用整库备份覆盖新记忆。备份可能含使用者的配置和凭据，只保存在该电脑，不上传仓库。
+
+启用后，仓库中的 `Verify-Bundle.ps1` 会验证适配注册和实际协议入口，`Repair-Bundle.ps1` 保留适配。升级或卸载原生包前须先回滚此可选修复，防止旧安装器覆盖新入口。Python 的注册路径必须继续可用；升级或移除 Python 后应核对适配注册。已经运行的 MCP 进程不会自动重载，正常退出并重启 Codex 后验收工具表。
+
+源代码隔离检查覆盖配置同步、未知登记拒绝、并发保护、失败回滚、其他应用保护、目录解析、真实原生写入、工具分页和管道 EOF。它不代表另一台电脑的 Codex 信任、重启绑定或 GUI 验收。
+
+## R5 原生包验证
 
 双击 `Verify Semantic Memory.cmd`。自动验证覆盖版本链、完整文件 SHA256、插件一致性、受管理配置及原生 MCP initialize/tools/list。自动 PASS 不证明当前 Codex 聊天已经重新加载。
 

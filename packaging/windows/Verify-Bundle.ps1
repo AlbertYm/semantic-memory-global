@@ -8,12 +8,22 @@ $ErrorActionPreference = 'Stop'
 if (-not $InstallRoot) { $InstallRoot = Join-Path $env:LOCALAPPDATA 'SemanticMemory' }
 if (-not $CodexHome) { $CodexHome = Join-Path $UserHome '.codex' }
 $checks = [ordered]@{}
+$adapterConfiguration = $null
 try {
     $runtimeOut = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Install-SemanticMemoryV2.ps1') -Action Verify -InstallRoot $InstallRoot 2>&1)
     $checks.runtime = ($LASTEXITCODE -eq 0 -and (($runtimeOut -join "`n") | ConvertFrom-Json).status -eq 'PASS')
     $pluginOut = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Install-SemanticMemoryPlugin.ps1') -Action Verify -PackageRoot $PSScriptRoot -UserHome $UserHome -CodexHome $CodexHome -StateRoot (Join-Path $UserHome 'AppData\Local\SemanticMemory\backups\codex-plugin') 2>&1)
     $checks.plugin = ($LASTEXITCODE -eq 0 -and (($pluginOut -join "`n") | ConvertFrom-Json).status -eq 'PASS')
-    $configOut = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Repair-SemanticMemory.ps1') -Mode Verify -ConfigPath (Join-Path $CodexHome 'config.toml') -InstallRoot $InstallRoot 2>&1)
+    if (Test-Path -LiteralPath (Join-Path $InstallRoot 'codex-memory-repair-state.json') -PathType Leaf) {
+        $configOut = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Repair-Codex-Memory.ps1') -Mode Verify -UserHome $UserHome -InstallRoot $InstallRoot -CodexHome $CodexHome 2>&1)
+        if ($LASTEXITCODE -eq 0) {
+            $persistent = ($configOut -join "`n") | ConvertFrom-Json
+            $adapterConfiguration = $persistent.registration
+            $checks.project_adapter = ($persistent.status -eq 'PASS')
+        }
+    } else {
+        $configOut = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot 'Repair-SemanticMemory.ps1') -Mode Verify -ConfigPath (Join-Path $CodexHome 'config.toml') -InstallRoot $InstallRoot 2>&1)
+    }
     $checks.config = ($LASTEXITCODE -eq 0 -and (($configOut -join "`n") | ConvertFrom-Json).status -eq 'PASS')
     $launcherOut = @(& powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $InstallRoot 'bin\semantic-memory-launcher.ps1') -Mode mcp -InstallRoot $InstallRoot -VerifyOnly 2>&1)
     $checks.full_payload_sha256 = ($LASTEXITCODE -eq 0 -and ($launcherOut -join "`n").Trim() -eq 'PASS_FULL_SHA256')
@@ -29,7 +39,12 @@ try {
             '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}',
             '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
         )
-        $protocolLines = @($messages | & (Join-Path $InstallRoot 'bin\semantic-memory-mcp.exe') 2>&1)
+        if ($adapterConfiguration) {
+            $adapterArguments = @($adapterConfiguration.args)
+            $protocolLines = @($messages | & ([string]$adapterConfiguration.command) @adapterArguments 2>&1)
+        } else {
+            $protocolLines = @($messages | & (Join-Path $InstallRoot 'bin\semantic-memory-mcp.exe') 2>&1)
+        }
         $protocolCode = $LASTEXITCODE
         $responses = @($protocolLines | ForEach-Object { ([string]$_) | ConvertFrom-Json })
         $init = @($responses | Where-Object { $_.id -eq 1 })[0]

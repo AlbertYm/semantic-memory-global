@@ -49,6 +49,9 @@ function Get-Expectation($state,$property) {
 if (-not [Environment]::Is64BitOperatingSystem) { throw 'This package supports Windows x64 only.' }
 if (-not (Test-Path -LiteralPath $payloadManifest -PathType Leaf)) { throw 'Package is incomplete: payload manifest is missing.' }
 Assert-SmCodexDesktopStopped -UserHome $UserHome -AllowRunningCodexForIsolatedTest:$AllowRunningCodexForIsolatedTest
+if (Test-Path -LiteralPath (Join-Path $InstallRoot 'codex-memory-repair-state.json') -PathType Leaf) {
+    throw 'PERSISTENT_REPAIR_ACTIVE: Roll back the persistent Codex memory repair before upgrading the native bundle. No install changes made.'
+}
 $previousBundleState = $null
 if (Test-Path -LiteralPath $statePath -PathType Leaf) {
     $previousBundleState = Get-Content -LiteralPath $statePath -Encoding UTF8 -Raw | ConvertFrom-Json

@@ -7,6 +7,8 @@ def sha(path):
 def write_json(path,value):path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
 def build(runtime,out):
     release=json.loads((ROOT/'RELEASE.json').read_text(encoding='utf-8'))
+    if release.get('unreleased_source_revision'):
+        raise ValueError('Source maintenance is not a published release. Set a new release version, tag, archive name and acceptance record before building; do not reuse the R5 identity.')
     if sha(runtime)!=release['runtime_sha256']:raise ValueError('Runtime SHA256 does not match RELEASE.json')
     bundle=out/release['archive_name'].removesuffix('.zip')
     if bundle.exists():raise FileExistsError('Release directory already exists; choose an empty output directory')
