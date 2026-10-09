@@ -1,4 +1,5 @@
 #include "memory/global_memory.h"
+#include "yyjson/yyjson.h"
 #include "memory/concept_growth.h"
 #include "memory/edge_lifecycle.h"
 #include "foundation/platform.h"

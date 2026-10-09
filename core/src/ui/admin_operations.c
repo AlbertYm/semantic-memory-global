@@ -450,6 +450,7 @@ char *cbm_admin_health_json(const char *project, const char *version) {
     admin_store_path_t stores[3] = {0};
     if (!admin_paths(project, stores))
         return admin_error("INVALID_PROJECT");
+    admin_registered_memory(project,stores);
     yyjson_mut_doc *doc = yyjson_mut_doc_new(NULL);
     yyjson_mut_val *root = doc ? yyjson_mut_obj(doc) : NULL;
     if (!doc || !root)
@@ -464,7 +465,19 @@ char *cbm_admin_health_json(const char *project, const char *version) {
     yyjson_mut_obj_add_str(doc, modes, "plasticity", "off");
     yyjson_mut_obj_add_bool(doc, modes, "active", false);
     yyjson_mut_obj_add_bool(doc, modes, "automatic_maintenance", false);
-    yyjson_mut_obj_add_bool(doc, modes, "global_union", false);
+    yyjson_mut_obj_add_bool(doc, modes, "global_union", !strcmp(stores[1].filename,"__global__-memory.db"));
+    char configured[8]={0};cbm_safe_getenv("CBM_VERIFIED_LEARNING",configured,sizeof(configured),NULL);
+    int learning_enabled=0;const char *learning_state=!strcmp(configured,"1") ? "waiting":"off";
+    sqlite3 *learning_db=NULL;sqlite3_stmt *learning_stmt=NULL;
+    if(sqlite3_open_v2(stores[1].path,&learning_db,SQLITE_OPEN_READONLY,NULL)==SQLITE_OK &&
+       sqlite3_prepare_v2(learning_db,"SELECT enabled,last_code FROM verified_learning_control WHERE id=1",
+        -1,&learning_stmt,NULL)==SQLITE_OK && sqlite3_step(learning_stmt)==SQLITE_ROW){
+        learning_enabled=!strcmp(configured,"1") && sqlite3_column_int(learning_stmt,0);
+        learning_state=learning_enabled ? (sqlite3_column_int(learning_stmt,1)==0 ? "on":"degraded"):"off";
+    }
+    sqlite3_finalize(learning_stmt);sqlite3_close(learning_db);
+    yyjson_mut_obj_add_bool(doc,modes,"verified_learning",learning_enabled);
+    yyjson_mut_obj_add_str(doc,modes,"learning_state",learning_state);
     yyjson_mut_obj_add_val(doc, root, "modes", modes);
     yyjson_mut_val *items = yyjson_mut_arr(doc);
     for (int i = 0; i < 3; i++) {

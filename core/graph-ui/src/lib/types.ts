@@ -104,6 +104,8 @@ export interface ManagerHealth {
     plasticity: string;
     active: boolean;
     automatic_maintenance: boolean;
+    verified_learning?: boolean;
+    learning_state?: string;
     global_union: boolean;
   };
   stores: ManagerStoreHealth[];

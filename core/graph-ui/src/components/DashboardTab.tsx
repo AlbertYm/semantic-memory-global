@@ -29,9 +29,10 @@ export function DashboardTab({ project }: { project: string }) {
         </div>
       </section>
       <section className="section-block mode-grid">
-        <div><span>Plasticity</span><strong>{data.modes.plasticity}</strong></div>
+        <div><span>旧演化控制器</span><strong>{data.modes.plasticity}</strong></div>
+        <div><span>自动学习</span><strong>{data.modes.learning_state ?? "waiting"}</strong></div>
         <div><span>Active</span><strong>{data.modes.active ? "on" : "off"}</strong></div>
-        <div><span>Auto maintenance</span><strong>{data.modes.automatic_maintenance ? "on" : "off"}</strong></div>
+        <div><span>旧维护（物理清理）</span><strong>{data.modes.automatic_maintenance ? "on" : "off"}</strong></div>
         <div><span>Global union</span><strong>{data.modes.global_union ? "on" : "off"}</strong></div>
       </section>
     </div>
