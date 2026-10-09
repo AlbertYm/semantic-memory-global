@@ -1,5 +1,6 @@
 """Catalog-backed stdio adapter; database access is read-only and the native core retains all security checks."""
 import argparse
+import hashlib
 from contextlib import closing
 import json
 import ntpath
@@ -11,7 +12,48 @@ import subprocess
 import sys
 import threading
 
-VERSION = "2026-10-09.1"
+VERSION = "2026-10-09.2"
+LEGACY_SHA256 = "95c13aa9dc4219923b96a5d3454256c6ecbb173556c23939c570642e99e88f80"
+LEGACY_TOOLS = {"neuroplastic_capture", "neuroplastic_evolution", "neuroplastic_maintenance", "neuroplastic_runtime_control"}
+
+def legacy_inventory(core):
+    payload=core.parent
+    binary=payload/"semantic-memory-v21-compat.exe"
+    schema=Path(__file__).with_name("legacy-v21-tools.json")
+    if not binary.is_file() or not schema.is_file():return [],None
+    tools=json.loads(schema.read_text(encoding="utf-8"))
+    if {tool["name"] for tool in tools} != LEGACY_TOOLS:raise ValueError("Invalid compatibility inventory")
+    return tools,binary
+
+def legacy_call(binary,request):
+    # Keep the previously verified native authorization, lease/fencing and policy checks.
+    # No SQL writes or policy translation in this adapter; the old tools run unchanged.
+    import queue
+    with binary.open("rb") as stream:
+        if hashlib.file_digest(stream,"sha256").hexdigest()!=LEGACY_SHA256:
+            raise ValueError("Compatibility runtime integrity mismatch")
+    child=subprocess.Popen([str(binary)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=None,
+        text=True,encoding="utf-8",bufsize=1)
+    replies=queue.Queue()
+    def read():
+        for line in child.stdout:
+            try:replies.put(json.loads(line))
+            except ValueError:continue
+    reader=threading.Thread(target=read,daemon=True);reader.start()
+    try:
+        child.stdin.write(json.dumps({"jsonrpc":"2.0","id":"compat-init","method":"initialize",
+            "params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"verified-compatibility","version":VERSION}}})+"\n")
+        child.stdin.flush()
+        while replies.get(timeout=45).get("id")!="compat-init":pass
+        child.stdin.write(json.dumps(request,ensure_ascii=False)+"\n");child.stdin.flush()
+        while True:
+            result=replies.get(timeout=45)
+            if result.get("id")==request.get("id"):return result
+    finally:
+        child.stdin.close()
+        try:child.wait(timeout=5)
+        except subprocess.TimeoutExpired:child.terminate();child.wait(timeout=5)
+        reader.join(timeout=5);child.stdout.close()
 GUIDANCE = (
     "Project identity: first call memory_resolve_project(workspace=<actual absolute cwd>) "
     "or memory_resolve_project(task_id=<active task id>), then use its project_uuid. "
@@ -123,6 +165,7 @@ def run(core, root):
     sys.stdin.reconfigure(encoding="utf-8", errors="strict")
     sys.stdout.reconfigure(encoding="utf-8", errors="strict", line_buffering=True)
     catalog = Catalog(root)
+    legacy_tools,legacy_binary=legacy_inventory(core)
     child = subprocess.Popen([str(core)], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                              stderr=None, text=True, encoding="utf-8", bufsize=1)
     lock = threading.Lock()
@@ -142,6 +185,7 @@ def run(core, root):
                     ts = response["result"].get("tools", [])
                     response["result"]["tools"] = [upgrade_descriptor(t) for t in ts]
                     if not response["result"].get("nextCursor"):
+                        response["result"]["tools"].extend(upgrade_descriptor(t.copy()) for t in legacy_tools)
                         response["result"]["tools"].append(RESOLVER)
                 elif meta.get("name") == "describe_tool" and "result" in response:
                     result = response["result"]
@@ -204,6 +248,12 @@ def run(core, root):
                         continue
                 request = adapt_request(request, catalog)
                 params = request.get("params", {})
+                requested=params.get("name")
+                described=params.get("arguments",{}).get("name") if isinstance(params.get("arguments",{}),dict) else None
+                if legacy_binary and request.get("method")=="tools/call" and (
+                    requested in LEGACY_TOOLS or (requested=="describe_tool" and described in LEGACY_TOOLS)):
+                    emit(legacy_call(legacy_binary,request))
+                    continue
                 if "id" in request:
                     pending[str(request["id"])] = {"method": request.get("method"), "name": params.get("name")}
                 child.stdin.write(json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n")

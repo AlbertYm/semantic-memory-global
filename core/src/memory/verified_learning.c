@@ -198,7 +198,7 @@ static int refresh_item(sqlite3 *db,const char *id,int64_t now) {
         "COALESCE((SELECT SUM(vote=1) FROM verified_learning_credit WHERE item_id=m.id),0),"
         "COALESCE((SELECT SUM(vote=-1) FROM verified_learning_credit WHERE item_id=m.id),0),"
         "COALESCE((SELECT MAX(verified_ms) FROM verified_learning_credit WHERE item_id=m.id "
-        "AND vote!=0),0) FROM memory_item m LEFT JOIN verified_learning_state s ON s.item_id=m.id "
+        "AND vote!=0),0),COALESCE(s.last_verified_ms,0) FROM memory_item m LEFT JOIN verified_learning_state s ON s.item_id=m.id "
         "WHERE m.id=?1 AND m.deleted_at IS NULL";
     if(sqlite3_prepare_v2(db,sql,-1,&stmt,NULL)!=SQLITE_OK)return CBM_STORE_ERR;
     sqlite3_bind_text(stmt,1,id,-1,SQLITE_TRANSIENT);
@@ -212,7 +212,7 @@ static int refresh_item(sqlite3 *db,const char *id,int64_t now) {
     double importance=sqlite3_column_double(stmt,2),old_utility=sqlite3_column_double(stmt,8),
            old_decay=sqlite3_column_double(stmt,9);
     int64_t created=sqlite3_column_int64(stmt,4),last_hit=sqlite3_column_int64(stmt,5),
-            restore_until=sqlite3_column_int64(stmt,11),verified=sqlite3_column_int64(stmt,14);
+            restore_until=sqlite3_column_int64(stmt,11),verified=sqlite3_column_int64(stmt,14),old_verified=sqlite3_column_int64(stmt,15);
     sqlite3_finalize(stmt);
     /* A verified result timestamp in the future never permits maintenance. */
     if(verified>now || created>now || last_hit>now)return CBM_STORE_REJECTED;
@@ -223,11 +223,12 @@ static int refresh_item(sqlite3 *db,const char *id,int64_t now) {
     if(importance>=0.8 || !strcmp(kind,"preference") || !strcmp(kind,"constraint") ||
        !strcmp(kind,"decision"))decay=0;
     double utility=0.15*tanh((double)(pos-neg)/3.0)*exp(-fmax(0.0,days-30.0)/180.0);
-    char before[128],after[128];
-    snprintf(before,sizeof(before),"{\"positive\":%d,\"negative\":%d,\"utility\":%.6f,\"decay\":%.6f}",
-             old_pos,old_neg,old_utility,old_decay);
-    snprintf(after,sizeof(after),"{\"positive\":%d,\"negative\":%d,\"utility\":%.6f,\"decay\":%.6f}",
-             pos,neg,utility,decay);
+    utility=round(utility*1000000.0)/1000000.0;decay=round(decay*1000000.0)/1000000.0;
+    char before[256],after[256];
+    snprintf(before,sizeof(before),"{\"positive\":%d,\"negative\":%d,\"utility\":%.6f,\"decay\":%.6f,\"last_verified_ms\":%lld}",
+             old_pos,old_neg,old_utility,old_decay,(long long)old_verified);
+    snprintf(after,sizeof(after),"{\"positive\":%d,\"negative\":%d,\"utility\":%.6f,\"decay\":%.6f,\"last_verified_ms\":%lld}",
+             pos,neg,utility,decay,(long long)verified);
     if(strcmp(before,after)!=0 && audit(db,"recompute_credit",id,before,after,now)!=CBM_STORE_OK)
         return CBM_STORE_ERR;
     if(sqlite3_prepare_v2(db,"INSERT INTO verified_learning_state(item_id,positive,negative,"
@@ -240,7 +241,7 @@ static int refresh_item(sqlite3 *db,const char *id,int64_t now) {
     int rc=sqlite3_step(stmt)==SQLITE_DONE ? CBM_STORE_OK:CBM_STORE_ERR;sqlite3_finalize(stmt);
     if(rc!=CBM_STORE_OK)return rc;
     /* Positive verified use is required for promotion: never blindly promote all candidates. */
-    int promote=!strcmp(status,"candidate") && pos>neg && importance>=0.7;
+    int promote=!strcmp(status,"candidate") && pos>=2 && pos>neg && importance>=0.7;
     int archive=!strcmp(status,"active") && !archived_version && pos+neg>0 && days>=180 &&
         importance<0.8 && now>restore_until &&
         (!strcmp(kind,"lesson") || !strcmp(kind,"fact") || !strcmp(kind,"reference"));
@@ -379,39 +380,57 @@ int cbm_learning_refresh(cbm_store_t *store,int64_t now) {
 
 void cbm_learning_rank(cbm_store_t *store,cbm_memory_result_t *result) {
     sqlite3 *db=store ? cbm_store_get_db(store):NULL;
-    if(!db || !result || !learning_enabled() ||
+    if(!db || !result || result->count<=0 || result->count>2048 || !learning_enabled() ||
         !scalar(db,"SELECT enabled FROM verified_learning_control WHERE id=1",0))return;
-    for(int i=0;i<result->count;i++){
-        result->items[i].retrieval_score-=result->items[i].learning_adjustment;
-        double adjustment=0;
-        sqlite3_stmt *stmt=NULL;
-        if(sqlite3_prepare_v2(db,"SELECT utility,decay FROM verified_learning_state WHERE item_id=?1",
-            -1,&stmt,NULL)!=SQLITE_OK)return;
-        sqlite3_bind_text(stmt,1,result->items[i].id,-1,SQLITE_TRANSIENT);
-        if(sqlite3_step(stmt)==SQLITE_ROW)
-            adjustment=sqlite3_column_double(stmt,0)-sqlite3_column_double(stmt,1);
-        sqlite3_finalize(stmt);
-        /* Associations can boost only an already relevant result; they cannot inject an
-         * unrelated/private memory or override normal scope and safety filtering. */
-        double boost=0;
-        for(int j=0;j<result->count;j++)if(i!=j){
-            if(sqlite3_prepare_v2(db,"SELECT success_count FROM verified_learning_association "
-                "WHERE (src_id=?1 AND dst_id=?2) OR (src_id=?2 AND dst_id=?1)",
-                -1,&stmt,NULL)!=SQLITE_OK)break;
-            sqlite3_bind_text(stmt,1,result->items[i].id,-1,SQLITE_TRANSIENT);
-            sqlite3_bind_text(stmt,2,result->items[j].id,-1,SQLITE_TRANSIENT);
-            if(sqlite3_step(stmt)==SQLITE_ROW)boost=fmax(boost,fmin(0.03,0.01*sqlite3_column_int(stmt,0)));
-            sqlite3_finalize(stmt);
+    /* Two set queries, not an N*N matrix of SQL preparations. Associations never add
+     * new candidates, bypass scope filtering, or turn co-use into factual support. */
+    double *adjustments=calloc((size_t)result->count,sizeof(double));
+    double *boosts=calloc((size_t)result->count,sizeof(double));
+    yyjson_mut_doc *doc=yyjson_mut_doc_new(NULL);
+    if(!adjustments || !boosts || !doc){free(adjustments);free(boosts);yyjson_mut_doc_free(doc);return;}
+    yyjson_mut_val *ids=yyjson_mut_arr(doc);yyjson_mut_doc_set_root(doc,ids);
+    for(int i=0;i<result->count;i++)yyjson_mut_arr_add_str(doc,ids,result->items[i].id);
+    char *json=yyjson_mut_write(doc,0,NULL);yyjson_mut_doc_free(doc);
+    if(!json){free(adjustments);free(boosts);return;}
+    int budget=1000,step=SQLITE_DONE;bool complete=false;sqlite3_stmt *stmt=NULL;
+    sqlite3_progress_handler(db,1000,vm_budget,&budget);
+    if(sqlite3_prepare_v2(db,"SELECT item_id,utility-decay FROM verified_learning_state WHERE "
+        "item_id IN (SELECT value FROM json_each(?1))",-1,&stmt,NULL)!=SQLITE_OK)goto cleanup;
+    sqlite3_bind_text(stmt,1,json,-1,SQLITE_TRANSIENT);
+    while((step=sqlite3_step(stmt))==SQLITE_ROW){
+        const char *id=(const char*)sqlite3_column_text(stmt,0);
+        for(int i=0;i<result->count;i++)if(!strcmp(id,result->items[i].id)){
+            adjustments[i]=sqlite3_column_double(stmt,1);break;}
+    }
+    sqlite3_finalize(stmt);stmt=NULL;if(step!=SQLITE_DONE)goto cleanup;
+    if(sqlite3_prepare_v2(db,"SELECT src_id,dst_id,success_count FROM verified_learning_association "
+        "WHERE success_count>0 AND src_id IN (SELECT value FROM json_each(?1)) "
+        "AND dst_id IN (SELECT value FROM json_each(?1)) ORDER BY src_id,dst_id LIMIT 512",
+        -1,&stmt,NULL)!=SQLITE_OK)goto cleanup;
+    sqlite3_bind_text(stmt,1,json,-1,SQLITE_TRANSIENT);
+    while((step=sqlite3_step(stmt))==SQLITE_ROW){
+        const char *src=(const char*)sqlite3_column_text(stmt,0),*dst=(const char*)sqlite3_column_text(stmt,1);
+        double boost=fmin(0.03,0.01*sqlite3_column_int(stmt,2));
+        for(int i=0;i<result->count;i++)if(!strcmp(src,result->items[i].id) || !strcmp(dst,result->items[i].id))
+            boosts[i]=fmax(boosts[i],boost);
+    }
+    complete=step==SQLITE_DONE;
+cleanup:
+    sqlite3_finalize(stmt);sqlite3_progress_handler(db,0,NULL,NULL);free(json);
+    if(complete){
+        for(int i=0;i<result->count;i++){
+            result->items[i].retrieval_score-=result->items[i].learning_adjustment;
+            result->items[i].learning_adjustment=adjustments[i]+boosts[i];
+            result->items[i].retrieval_score+=adjustments[i]+boosts[i];
         }
-        result->items[i].learning_adjustment=adjustment+boost;
-        result->items[i].retrieval_score+=adjustment+boost;
+        for(int i=1;i<result->count;i++){
+            cbm_memory_item_t item=result->items[i];int j=i-1;
+            while(j>=0 && result->items[j].retrieval_score<item.retrieval_score){
+                result->items[j+1]=result->items[j];j--;}
+            result->items[j+1]=item;
+        }
     }
-    for(int i=1;i<result->count;i++){
-        cbm_memory_item_t item=result->items[i];int j=i-1;
-        while(j>=0 && result->items[j].retrieval_score<item.retrieval_score){
-            result->items[j+1]=result->items[j];j--;}
-        result->items[j+1]=item;
-    }
+    free(adjustments);free(boosts);
 }
 
 char *cbm_learning_status(cbm_store_t *store,const char *project) {

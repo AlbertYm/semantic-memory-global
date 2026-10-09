@@ -57,7 +57,15 @@ static int task(cbm_store_t *store,int number,const char **items,int count,const
     cbm_task_evidence_input_t evidence={.task_id=task_id,.result_id=result_id,.result_hash=HASH,
         .evidence_id=evidence_id,.evidence_hash=HASH,.evidence_trust=trust,.evidence_source="runtime",
         .result_status=failed ? "failed":"succeeded",.idempotency_key=evidence_key};
-    CHECK(cbm_orchestrator_record_evidence(store,&evidence,&report)==CBM_STORE_OK);free(report);
+    if(!strcmp(trust,"explicit_user")){
+        snprintf(sql,sizeof(sql),"INSERT INTO memory_task_result VALUES('%s','%s','user_confirmation','succeeded',"
+            "'fixture-user-confirmation','%s','2026-10-09T00:00:00Z');INSERT INTO memory_evidence VALUES("
+            "'%s','%s','%s','explicit_user','valid','user','fixture-user-confirmation','%s',NULL,'2026-10-09T00:00:00Z')",
+            result_id,task_id,HASH,evidence_id,task_id,result_id,HASH);
+        CHECK(run(db,sql)==SQLITE_OK);
+    }else {
+        CHECK(cbm_orchestrator_record_evidence(store,&evidence,&report)==CBM_STORE_OK);free(report);
+    }
     if(receipt)CHECK(cbm_learning_record_receipt(store,evidence_id,HASH,failed)==CBM_STORE_OK);
     if(!state)return 0;
     cbm_task_attribution_input_t attributes[16]={0};
@@ -90,15 +98,23 @@ static int test_learning(void){
     CHECK(!strcmp(ranked.items[0].id,"a-unproven"));
     CHECK(task(store,4,helpful,3,"external_verified",1,"used",0)==0);
     CHECK(scalar(db,"SELECT positive FROM verified_learning_state WHERE item_id='b-helpful'")==1);
-    CHECK(scalar(db,"SELECT COUNT(*) FROM memory_item WHERE id='b-helpful' AND status='active'")==1);
+    CHECK(scalar(db,"SELECT COUNT(*) FROM memory_item WHERE id='b-helpful' AND status='candidate'")==1);
     cbm_learning_rank(store,&ranked);CHECK(!strcmp(ranked.items[0].id,"b-helpful"));
     CHECK(ranked.items[0].retrieval_score>.7);
     CHECK(scalar(db,"SELECT success_count FROM verified_learning_association WHERE src_id='b-helpful' AND dst_id='c-peer'")==1);
+    CHECK(task(store,7,helpful,3,"external_verified",1,"used",0)==0);
+    CHECK(scalar(db,"SELECT COUNT(*) FROM memory_item WHERE id='b-helpful' AND status='active'")==1);
     int64_t now=(int64_t)time(NULL)*1000;
     CHECK(cbm_learning_refresh(store,now)==CBM_STORE_OK);
-    CHECK(scalar(db,"SELECT positive FROM verified_learning_state WHERE item_id='b-helpful'")==1);
+    CHECK(scalar(db,"SELECT positive FROM verified_learning_state WHERE item_id='b-helpful'")==2);
     CHECK(task(store,5,unproven,1,"external_verified",1,"rejected",1)==0);
     CHECK(scalar(db,"SELECT negative FROM verified_learning_state WHERE item_id='a-unproven'")==1);
+    CHECK(task(store,6,unproven,1,"explicit_user",0,"used",0)==0);
+    CHECK(scalar(db,"SELECT positive FROM verified_learning_state WHERE item_id='a-unproven'")==0);
+    CHECK(cbm_learning_confirm_user(store,"other-project","evidence-6",HASH)==CBM_STORE_REJECTED);
+    CHECK(cbm_learning_confirm_user(store,"learning-fixture","evidence-6",HASH)==CBM_STORE_OK);
+    CHECK(cbm_learning_confirm_user(store,"learning-fixture","evidence-6",HASH)==CBM_STORE_REPLAYED);
+    CHECK(scalar(db,"SELECT positive FROM verified_learning_state WHERE item_id='a-unproven'")==1);
     CHECK(cbm_learning_tool_outcome("exec_command","{\"exit_code\":0,\"output\":\"PASS\"}")==0);
     CHECK(cbm_learning_tool_outcome("exec_command","{\"exit_code\":1,\"output\":\"PASS\"}")==1);
     CHECK(cbm_learning_tool_outcome("exec_command","{\"session_id\":1,\"exit_code\":0,\"output\":\"running\"}")==-1);
@@ -129,15 +145,25 @@ static int test_learning(void){
     report=cbm_learning_status(store,"other-project");CHECK(report && !strstr(report,"b-helpful"));free(report);
     CHECK(scalar(db,"SELECT COUNT(*) FROM memory_item WHERE deleted_at IS NOT NULL")==0);
     /* An append-only withdrawal compensates both utility and co-use association. */
-    CHECK(run(db,"INSERT INTO feedback_event SELECT 'withdraw-helpful',task_id,session_id,candidate_id,"
+    CHECK(run(db,"INSERT INTO feedback_event SELECT event_id||'-withdraw',task_id,session_id,candidate_id,"
         "injection_id,usage_id,result_id,evidence_id,'withdraw',processing_mode,canonical_payload_sha256,"
         "payload_json,result_json,event_id,algorithm_version,config_version,received_at FROM feedback_event "
-        "WHERE task_id=(SELECT task_id FROM codex_task_lifecycle WHERE idempotency_key='complete-4') "
-        "AND candidate_id='candidate-4-0'")==SQLITE_OK);
+        "WHERE task_id IN (SELECT task_id FROM codex_task_lifecycle WHERE idempotency_key IN ('complete-4','complete-7')) "
+        "AND candidate_id IN ('candidate-4-0','candidate-7-0')")==SQLITE_OK);
     CHECK(cbm_learning_refresh(store,now+192*DAY)==CBM_STORE_OK);
     CHECK(scalar(db,"SELECT positive FROM verified_learning_state WHERE item_id='b-helpful'")==0);
     CHECK(scalar(db,"SELECT success_count FROM verified_learning_association WHERE src_id='b-helpful' AND dst_id='c-peer'")==0);
     CHECK(scalar(db,"SELECT decay=0 FROM verified_learning_state WHERE item_id='d-protected'")==1);
+    int old_count=scalar(db,"SELECT COUNT(*) FROM verified_learning_state");
+    for(int i=0;i<70;i++){
+        char sql[512];snprintf(sql,sizeof(sql),"INSERT INTO memory_item(id,kind,layer,content,status,created_at,updated_at) "
+            "VALUES('zz-budget-%03d','lesson','semantic','budget fixture','candidate',1,1)",i);
+        CHECK(run(db,sql)==SQLITE_OK);
+    }
+    CHECK(cbm_learning_refresh(store,now+192*DAY)==CBM_STORE_OK);
+    CHECK(scalar(db,"SELECT COUNT(*) FROM verified_learning_state")-old_count<=64);
+    CHECK(cbm_learning_refresh(store,now+192*DAY)==CBM_STORE_OK);
+    CHECK(scalar(db,"SELECT COUNT(*) FROM verified_learning_state")==old_count+70);
     cbm_store_close(store);return 0;
 }
 int main(void){

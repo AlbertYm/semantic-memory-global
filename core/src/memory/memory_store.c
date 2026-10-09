@@ -3663,6 +3663,7 @@ static int memory_stage6_after_stage5(cbm_store_t *s, const cbm_memory_query_t *
         }
         memory_sort_result_by_score(out);
         memory_filter_safety_fixtures(query, out);
+        cbm_learning_rank(s, out);
         memory_resolve_conflicts(s, query, out, limit);
         memory_fill_result_evidence(s, out);
     }

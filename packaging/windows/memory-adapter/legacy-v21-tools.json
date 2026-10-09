@@ -1,0 +1,369 @@
+[
+  {
+    "name": "neuroplastic_runtime_control",
+    "title": "Pause or resume the governed runtime",
+    "description": "Apply a CAS pause/resume to the Stage 14 runtime-control ledger. The policy and its independent authorization envelope are verified before any write.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "policy_path": {
+          "type": "string"
+        },
+        "policy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "authorization_path": {
+          "type": "string"
+        },
+        "authorization_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "pause",
+            "resume"
+          ]
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "evidence_id": {
+          "type": "string"
+        },
+        "actor_class": {
+          "type": "string"
+        },
+        "expected_generation": {
+          "type": "integer"
+        },
+        "now_ms": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project",
+        "policy_path",
+        "policy_sha256",
+        "authorization_path",
+        "authorization_sha256",
+        "action",
+        "idempotency_key",
+        "expected_generation"
+      ]
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  {
+    "name": "neuroplastic_capture",
+    "title": "Capture one governed structured memory",
+    "description": "Create a bounded project-scoped capture proposal. A/B evidence may promote only when the deterministic matrix permits it; C/model_self_report is process-local.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "policy_path": {
+          "type": "string"
+        },
+        "policy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "authorization_path": {
+          "type": "string"
+        },
+        "authorization_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "off",
+            "shadow",
+            "active"
+          ]
+        },
+        "capture_id": {
+          "type": "string"
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "evidence_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "scope": {
+          "type": "string",
+          "const": "project"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "decision",
+            "constraint",
+            "preference",
+            "lesson",
+            "fact",
+            "reference"
+          ]
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 512
+        },
+        "content": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "entity_key": {
+          "type": "string"
+        },
+        "predicate": {
+          "type": "string"
+        },
+        "about_code": {
+          "type": "string"
+        },
+        "supersedes": {
+          "type": "string"
+        },
+        "evidence_grade": {
+          "type": "string",
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        "importance": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "reusability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "specificity": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "now_ms": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project",
+        "policy_path",
+        "policy_sha256",
+        "authorization_path",
+        "authorization_sha256",
+        "mode",
+        "capture_id",
+        "task_id",
+        "evidence_id",
+        "idempotency_key",
+        "scope",
+        "kind",
+        "summary",
+        "content",
+        "evidence_grade"
+      ]
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  {
+    "name": "neuroplastic_maintenance",
+    "title": "Run governed archive-only maintenance",
+    "description": "Run one bounded maintenance controller with lease, fencing, checkpoint, policy recheck and archive-only operations. It is never triggered by retrieval or events.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "policy_path": {
+          "type": "string"
+        },
+        "policy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "authorization_path": {
+          "type": "string"
+        },
+        "authorization_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "off",
+            "shadow",
+            "active"
+          ]
+        },
+        "owner_id": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 50
+        },
+        "budget_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "now_ms": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project",
+        "policy_path",
+        "policy_sha256",
+        "authorization_path",
+        "authorization_sha256",
+        "mode",
+        "owner_id",
+        "run_id",
+        "idempotency_key",
+        "limit",
+        "budget_seconds"
+      ]
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  {
+    "name": "neuroplastic_evolution",
+    "title": "Apply one evidence-gated evolution event",
+    "description": "Apply a bounded A/B evolution to an exact project item or same-project edge using the existing global_evolution_event hash chain. C/model_self_report never persists.",
+    "inputSchema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "project": {
+          "type": "string"
+        },
+        "policy_path": {
+          "type": "string"
+        },
+        "policy_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "authorization_path": {
+          "type": "string"
+        },
+        "authorization_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-fA-F]{64}$"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "off",
+            "shadow",
+            "active"
+          ]
+        },
+        "task_id": {
+          "type": "string"
+        },
+        "evidence_id": {
+          "type": "string"
+        },
+        "idempotency_key": {
+          "type": "string"
+        },
+        "memory_item_id": {
+          "type": "string"
+        },
+        "operation": {
+          "type": "string",
+          "enum": [
+            "positive",
+            "negative",
+            "correct",
+            "archive",
+            "edge"
+          ]
+        },
+        "target_memory_id": {
+          "type": "string"
+        },
+        "edge_type": {
+          "type": "string"
+        },
+        "evidence_grade": {
+          "type": "string",
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        },
+        "now_ms": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project",
+        "policy_path",
+        "policy_sha256",
+        "authorization_path",
+        "authorization_sha256",
+        "mode",
+        "task_id",
+        "evidence_id",
+        "idempotency_key",
+        "memory_item_id",
+        "operation",
+        "evidence_grade"
+      ]
+    },
+    "outputSchema": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+]

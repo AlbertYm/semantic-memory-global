@@ -5,7 +5,7 @@ ROOT=pathlib.Path(__file__).resolve().parents[1]
 def sha(path):
     with path.open('rb') as stream:return hashlib.file_digest(stream,'sha256').hexdigest()
 def write_json(path,value):path.write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-def build(runtime,out):
+def build(runtime,out,legacy=None):
     release=json.loads((ROOT/'RELEASE.json').read_text(encoding='utf-8'))
     if release.get('unreleased_source_revision'):
         raise ValueError('Source maintenance is not a published release. Set a new release version, tag, archive name and acceptance record before building; do not reuse the R5 identity.')
@@ -19,6 +19,10 @@ def build(runtime,out):
     payload=bundle/'payload';payload.mkdir()
     names={'mcp':'semantic-memory-mcp.exe','hook':'semantic-memory-hook.exe','manager':'semantic-memory-manager.exe'}
     for name in names.values():shutil.copyfile(runtime,payload/name)
+    if release.get('legacy_compatibility_runtime'):
+        expected=release['legacy_compatibility_runtime']['sha256']
+        if legacy is None or sha(legacy)!=expected:raise ValueError('Verified legacy compatibility runtime required')
+        shutil.copyfile(legacy,payload/'semantic-memory-v21-compat.exe')
     server={'name':'io.github.AlbertYm/semantic-memory-global','version':release['runtime_version'],'description':'Auditable local memory across Codex workspaces','repository':{'url':release['repository'],'source':'github'},'packages':[]}
     write_json(payload/'server.json',server)
     write_json(payload/'payload-manifest.json',{'schema':'stage14-payload-manifest/v1','version':release['runtime_version'],'version_id':release['runtime_version_id'],'entrypoints':names,'files':[{'path':p.name,'bytes':p.stat().st_size,'sha256':sha(p)} for p in sorted(payload.iterdir())]})
@@ -37,4 +41,5 @@ def build(runtime,out):
     return {'archive':str(archive),'sha256':sha(archive),'bytes':archive.stat().st_size,'bundle':str(bundle),'version':release['version']}
 if __name__=='__main__':
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--runtime-exe',required=True,type=pathlib.Path);p.add_argument('--output',required=True,type=pathlib.Path)
-    a=p.parse_args();print(json.dumps(build(a.runtime_exe,a.output)))
+    p.add_argument('--legacy-runtime-exe',type=pathlib.Path)
+    a=p.parse_args();print(json.dumps(build(a.runtime_exe,a.output,a.legacy_runtime_exe)))

@@ -723,7 +723,7 @@ static int gm_replay_retrieval(cbm_global_memory_t *global, const char *session_
     sqlite3_stmt *stmt = NULL;
     const char *sql =
         "SELECT c.id,c.source_store_id,c.memory_item_id,c.content_hash,c.aggregate_score,"
-        "s.id,s.source_type,s.raw_score FROM retrieval_candidate c "
+        "s.id,s.source_type,s.raw_score,s.source_detail_json FROM retrieval_candidate c "
         "LEFT JOIN retrieval_candidate_source s ON s.candidate_id=c.id "
         "WHERE c.session_id=?1 ORDER BY c.aggregate_rank,c.id LIMIT ?2;";
     if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK)
@@ -758,6 +758,10 @@ static int gm_replay_retrieval(cbm_global_memory_t *global, const char *session_
         candidate->content_hash = gm_dup(content_hash);
         candidate->item.retrieval_source = gm_dup(source_type ? source_type : "manual");
         candidate->item.retrieval_score = sqlite3_column_double(stmt, 7);
+        const char *detail=(const char*)sqlite3_column_text(stmt,8);
+        yyjson_doc *detail_doc=detail ? yyjson_read(detail,strlen(detail),0):NULL;
+        candidate->item.learning_adjustment=detail_doc ? yyjson_get_real(yyjson_obj_get(yyjson_doc_get_root(detail_doc),"learning_adjustment")):0;
+        yyjson_doc_free(detail_doc);
         candidate->global_score = sqlite3_column_double(stmt, 4);
         const char *evidence_parts[] = {session_id, memory_item_id,
                                         "{\"project_role\":\"provenance_and_soft_boost\"}"};
@@ -958,7 +962,10 @@ int cbm_global_memory_retrieve(cbm_global_memory_t *global, const char *session_
         observations[i].normalized_score = out->items[i].global_score;
         observations[i].aggregate_rank = i + 1;
         observations[i].decision_status = "selected";
-        observations[i].source_detail_json = "{\"candidate_pool\":\"global\"}";
+        char detail[160];
+        snprintf(detail,sizeof(detail),"{\"candidate_pool\":\"global\",\"learning_adjustment\":%.9f}",out->items[i].item.learning_adjustment);
+        observations[i].source_detail_json=gm_dup(detail);
+        if(!observations[i].source_detail_json){rc=CBM_STORE_ERR;break;}
         observations[i].evidence_json = "{\"project_role\":\"provenance_and_soft_boost\"}";
     }
     if (rc == CBM_STORE_OK && out->count > 0)
@@ -977,6 +984,7 @@ int cbm_global_memory_retrieve(cbm_global_memory_t *global, const char *session_
     }
     cbm_store_memory_observation_refs_free(refs, out->count);
     free(refs);
+    for(int i=0;observations && i<out->count;i++)free((void*)observations[i].source_detail_json);
     free(observations);
     free(observed_session);
     free(observed_request);

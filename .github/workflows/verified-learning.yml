@@ -2,6 +2,7 @@ name: Verified learning Windows
 on:
   push:
     branches: [verified-learning-r7]
+    paths: ['core/**', 'tests/**', '.github/workflows/verified-learning.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -23,7 +24,7 @@ jobs:
         shell: msys2 {0}
         run: |
           cd core
-          make -j4 -f Makefile.cbm test-verified-learning test-orchestrator-stage12 CC=clang CXX=clang++ SANITIZE=
+          make -j4 -f Makefile.cbm test-verified-learning test-orchestrator-stage12 test-memory-stage10 test-global-stage14 CC=clang CXX=clang++ SANITIZE=
       - name: Build frontend and native core
         shell: msys2 {0}
         run: |
