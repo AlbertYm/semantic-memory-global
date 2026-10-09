@@ -1,13 +1,13 @@
 {
   "schema": "semantic-memory-release/v1",
-  "version": "1.1.0-rc.1+codex.20261009152000",
-  "installer_revision": "R7",
-  "tag": "v1.1.0-rc.1-codex.20261009152000-r7",
+  "version": "1.1.0-rc.1+codex.20261009170930",
+  "installer_revision": "R7.1",
+  "tag": "v1.1.0-rc.1-codex.20261009170930-r7.1",
   "runtime_version": "v1.1.0-rc.1+codex.20261009152000",
-  "runtime_version_id": "stage14-verified-learning-r7-20261009",
+  "runtime_version_id": "stage14-verified-learning-r7-1-20261009",
   "core_revision": "verified-learning-r7",
   "runtime_sha256": "f70181ce4b102837c4110567b98c1afd483d582c98109bb70c38185ba0632459",
-  "archive_name": "SemanticMemory-1.1.0-rc.1-codex.20261009152000-windows-x64-r7.zip",
+  "archive_name": "SemanticMemory-1.1.0-rc.1-codex.20261009170930-windows-x64-r7.1.zip",
   "repository": "https://github.com/AlbertYm/semantic-memory-global",
   "upstream_repository": "https://github.com/AlbertYm/neuroplastic-memory-mcp",
   "upstream_commit": "0825fca6d25b63dfe865e5834a57878a11f8efef",
@@ -25,5 +25,6 @@
     "source_closure": "incomplete; retained verified R6 native implementation"
   },
   "source_build_run": "https://github.com/AlbertYm/semantic-memory-global/actions/runs/37904309932",
-  "source_build_commit": "7123785cc30a377aedc97a38d3ef8e7e074decb8"
+  "source_build_commit": "7123785cc30a377aedc97a38d3ef8e7e074decb8",
+  "primary_runtime_reused_from": "R7; native runtime unchanged, installer migration hotfix"
 }

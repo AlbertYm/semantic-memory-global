@@ -232,7 +232,13 @@ class BundleTests(unittest.TestCase):
         self.repair(user,codex,runtime,'Rollback')
         self.ps(self.package,'Uninstall-Bundle.ps1',user,codex,runtime)
         self.assertEqual((codex/'config.toml').read_bytes(),prior_config)
-        self.assertEqual((runtime/'state/current.json').read_bytes(),pointer)
+        restored=json.loads((runtime/'state/current.json').read_text(encoding='utf-8'))
+        original=json.loads(pointer)
+        # A valid rollback issues a fresh activation receipt and timestamp.
+        self.assertEqual(restored['version_id'],original['version_id'])
+        self.assertEqual(restored['manifest_sha256'],original['manifest_sha256'])
+        with prior_core.open('rb') as stream:
+            self.assertEqual(hashlib.file_digest(stream,'sha256').hexdigest(),self.release['legacy_compatibility_runtime']['sha256'])
         self.check_item(runtime,event['item_id'])
 
 if __name__=='__main__':unittest.main(verbosity=2)

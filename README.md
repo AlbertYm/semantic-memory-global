@@ -4,9 +4,9 @@ Auditable local memory for Codex Desktop, with global recall across workspaces.
 
 面向 Windows x64 的本地记忆 MCP：保存可复用偏好、经验和项目决策，按任务召回，并保留来源、使用归因与生命周期证据。全局记忆跨工作区共享，项目记忆保留项目范围。
 
-**当前发布：R7 / `1.1.0-rc.1+codex.20261009152000`。** 原生核心、Hook 和 Manager 已从源码重建，新增基于结果的自动学习。版本、哈希与兼容组件以 [RELEASE.json](RELEASE.json) 为准。
+**当前发布：R7.1 / `1.1.0-rc.1+codex.20261009170930`。** 原生核心、Hook 和 Manager 已从源码重建，新增基于结果的自动学习。版本、哈希与兼容组件以 [RELEASE.json](RELEASE.json) 为准。
 
-**R7 根据可验证的使用结果调整选择与关联。** 已完成任务中的真实候选归因结合命令退出结果或 Manager 用户确认，产生正负信用；信用影响相关候选排序与共同使用关联，受控晋升、重复整合、衰减与归档保留恢复路径。R6 的持久注册与项目身份修复继续保留。
+**R7 根据可验证的使用结果调整选择与关联。** 已完成任务中的真实候选归因结合命令退出结果或 Manager 用户确认，产生正负信用；信用影响相关候选排序与共同使用关联，受控晋升、重复整合、衰减与归档保留恢复路径。R6 的持久注册与项目身份修复继续保留。R7.1 沿用 R7 原生运行时，修复早期项目适配器迁移和安装前的注册预检。
 
 - [下载 Windows 完整发布包](https://github.com/AlbertYm/semantic-memory-global/releases/latest)
 - [安装、升级、验证和卸载](docs/INSTALL.zh-CN.md)
@@ -16,8 +16,8 @@ Auditable local memory for Codex Desktop, with global recall across workspaces.
 
 ## 快速开始
 
-1. 从 Releases 下载 `SemanticMemory-1.1.0-rc.1-codex.20261009152000-windows-x64-r7.zip` 和对应 SHA256 文件，解压整个 ZIP。
-2. 保存工作，完全退出 Codex Desktop 和 Memory Manager。已有 R6 持久修复时，先在原包运行 `Rollback Persistent Codex Memory.cmd`，保留数据再升级。
+1. 从 Releases 下载 `SemanticMemory-1.1.0-rc.1-codex.20261009170930-windows-x64-r7.1.zip` 和对应 SHA256 文件，解压整个 ZIP。
+2. 保存工作，完全退出 Codex Desktop 和 Memory Manager。正式 R6/R7 持久修复仍处于启用状态时，先在原包运行 `Rollback Persistent Codex Memory.cmd`，保留数据再升级。
 3. 确认已安装 Python 3.11+ 且 `python.exe` 可用，双击 `Install Semantic Memory.cmd`。使用当前普通用户，无需管理员权限。
 4. 成功后重新打开 Codex；如果出现插件信任提示，核对插件名称和版本后确认。
 5. 新建聊天，说明一项值得长期保存的偏好，例如“记住：解释步骤时默认用中文，这条偏好跨项目生效”。后续在另一个工作区查询这项偏好，验证实际记录和召回。

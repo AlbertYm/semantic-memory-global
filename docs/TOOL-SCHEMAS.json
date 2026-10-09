@@ -1,6 +1,6 @@
 {
   "schema": "semantic-memory-tool-schemas/v2",
-  "version": "1.1.0-rc.1+codex.20261009152000",
+  "version": "1.1.0-rc.1+codex.20261009170930",
   "source_build_run": "https://github.com/AlbertYm/semantic-memory-global/actions/runs/37904309932",
   "tools": [
     {

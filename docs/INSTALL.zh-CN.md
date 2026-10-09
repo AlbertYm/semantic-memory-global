@@ -58,7 +58,11 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Uninstall-Bundle.ps1 -
 
 这些命令分别用于验证、配置修复、打开 Manager 和卸载；不要一次全部执行。安装、修复和卸载前须正常退出相关应用。已安装的 MCP 注册会引用所选根目录，日常在 Codex 使用时不需要每次运行这些命令。
 
-先备份自己的数据，再正常退出相关应用。若存在已启用的持久修复（包括仓库版、R6 或 R7），先使用原修复包的 `Rollback Persistent Codex Memory.cmd` 回滚；成功后运行新包的安装入口。未启用适配的 R5/R6 可直接运行 R7 安装入口。安装器根据包版本与实际 payload 判断安装、升级或配置修复；升级保留记忆，不导入发布者数据库。旧版本与配置/插件事务备份用于恢复。
+先备份自己的数据，再正常退出相关应用。若存在已启用的正式持久修复（存在 codex-memory-repair-state.json，包括 R6 或 R7），先使用原修复包的 `Rollback Persistent Codex Memory.cmd` 回滚；成功后运行新包的安装入口。未启用适配的 R5/R6 可直接运行 R7 安装入口。安装器根据包版本与实际 payload 判断安装、升级或配置修复；升级保留记忆，不导入发布者数据库。旧版本与配置/插件事务备份用于恢复。
+
+R7.1 补充早期 `semantic_memory_project_adapter_20261009.py` 的直接迁移。没有正式持久事务时，不需要先运行 R6 回滚；直接运行 R7.1 安装入口。安装器核对旧适配器 SHA256、精确参数/数据根、原私有事务中的注册和已验收状态。没有证明、文件漂移或未知注册仍拒绝。安装前 Check 对配置及 MMCAPI 做只读预检，避免先升级运行时再发现未知注册。新事务从当前配置建立备份，不回填早期完整配置，后来的模型与其他设置保留。
+
+R7.1 的回滚入口在没有正式事务时返回 `NOTHING_TO_ROLLBACK / NO_PERSISTENT_REPAIR_TRANSACTION`，不改注册、不创建事务；这不表示早期适配器被卸载。
 
 已经安装相同包时重新运行入口进入配置 Repair。`Repair Semantic Memory MCP.cmd` 修复受管理注册；它不能替代缺失的新运行时升级。
 
