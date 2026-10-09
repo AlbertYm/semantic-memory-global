@@ -1,6 +1,6 @@
 ﻿[CmdletBinding()]
 param(
-    [ValidateSet('Apply','Verify','Rollback')][string]$Mode = 'Apply',
+    [ValidateSet('Apply','Verify','Rollback','Check')][string]$Mode = 'Apply',
     [string]$UserHome = $env:USERPROFILE,
     [string]$InstallRoot,
     [string]$CodexHome,
@@ -19,7 +19,7 @@ if (-not $CodexHome) {
     $CodexHome = $env:CODEX_HOME
     if (-not $CodexHome) { $CodexHome = Join-Path $UserHome '.codex' }
 }
-if ($Mode -ne 'Verify') {
+if ($Mode -notin @('Verify','Check')) {
     Assert-SmCodexDesktopStopped -UserHome $UserHome -AllowRunningCodexForIsolatedTest:$AllowRunningCodexForIsolatedTest
 }
 if (-not $TransactionPath -and (Test-Path -LiteralPath (Join-Path $InstallRoot 'codex-memory-repair-state.json'))) {

@@ -94,6 +94,57 @@ class TransactionTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError,"UNKNOWN_SEMANTIC_REGISTRATION"):self.r.prepare()
         self.assertEqual((self.codex/"config.toml").read_bytes(),before);self.assertEqual(self.rows(),self.rows_before)
 
+    def legacy_fixture(self):
+        legacy=self.runtime/"tools/semantic_memory_project_adapter_20261009.py"
+        legacy.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(ROOT/"tests/fixtures/semantic_memory_project_adapter_20261009.py",legacy)
+        old=copy.deepcopy(self.r.desired);old["args"][2]=str(legacy)
+        old["env"].pop("CBM_VERIFIED_LEARNING")
+        folder=self.runtime/"backups/project-adapter_fixture";folder.mkdir(parents=True)
+        (folder/"transaction.json").write_text(json.dumps({"schema":"semantic-memory-project-adapter-transaction/v1",
+            "phase":"APPLIED_RUNTIME_VERIFIED","adapter_sha256":repair.LEGACY_ADAPTER_SHA256,
+            "new_registration":old}),encoding="utf-8")
+        return old,legacy,folder
+
+    def test_attested_legacy_adapter_migration_and_rollback_preserve_later_config(self):
+        old,legacy,_=self.legacy_fixture(); legacy_before=legacy.read_bytes()
+        raw='# Later user configuration\nmodel_verbosity = "high"\n'+repair.patch_toml(self.base,old,self.core)
+        (self.codex/"config.toml").write_text(raw,encoding="utf-8")
+        with closing(sqlite3.connect(self.db)) as c,c:
+            c.execute("insert into mcp_servers values(?,?,?,?,?,?,?,?,?)",("semantic_memory","fixture",json.dumps(old),"","","","[]",1,0))
+            c.execute("update settings set value=?",(raw,))
+            for row in c.execute("select id,settings_config from providers where app_type='codex'").fetchall():
+                obj=json.loads(row[1]);obj['config']=raw
+                c.execute("update providers set settings_config=? where id=? and app_type='codex'",(json.dumps(obj),row[0]))
+        before=(self.codex/"config.toml").read_bytes();rows=self.rows()
+        folder=self.r.prepare();self.r.apply(folder);self.r.verify(folder)
+        self.assertIn("# Later user configuration",(self.codex/"config.toml").read_text(encoding="utf-8"))
+        self.r.rollback(folder)
+        self.assertEqual((self.codex/"config.toml").read_bytes(),before);self.assertEqual(self.rows(),rows)
+        self.assertEqual(legacy.read_bytes(),legacy_before)
+
+    def test_legacy_name_alone_tampering_or_different_interpreter_is_rejected(self):
+        old,legacy,folder=self.legacy_fixture()
+        self.assertTrue(repair.compatible(old,self.r.desired,self.core))
+        changed=copy.deepcopy(old);changed['command']='unknown-wrapper.exe'
+        self.assertFalse(repair.compatible(changed,self.r.desired,self.core))
+        changed=copy.deepcopy(old);changed['args'][6]=str(self.temp/'foreign-data')
+        self.assertFalse(repair.compatible(changed,self.r.desired,self.core))
+        legacy.write_bytes(legacy.read_bytes()+b'\n# tampered\n')
+        self.assertFalse(repair.compatible(old,self.r.desired,self.core))
+        shutil.copyfile(ROOT/"tests/fixtures/semantic_memory_project_adapter_20261009.py",legacy)
+        (folder/'transaction.json').unlink()
+        self.assertFalse(repair.compatible(old,self.r.desired,self.core))
+
+    def test_no_transaction_rollback_is_zero_write_and_check_is_read_only(self):
+        files={p:p.read_bytes() for p in self.temp.rglob('*') if p.is_file()}
+        command=[sys.executable,'-I',str(SOURCE/'repair_codex_memory.py')]
+        parameters=['--user-home',str(self.user),'--codex-home',str(self.codex),'--install-root',str(self.runtime),'--mmcapi-db',str(self.db)]
+        for mode,status in (('rollback','NOTHING_TO_ROLLBACK'),('check','COMPATIBLE_ZERO_WRITE')):
+            p=subprocess.run(command+[mode]+parameters,capture_output=True,text=True,encoding='utf-8',check=True)
+            self.assertEqual(json.loads(p.stdout)['status'],status)
+            self.assertEqual({p:p.read_bytes() for p in self.temp.rglob('*') if p.is_file()},files)
+
     def test_source_row_cas_refuses_concurrent_provider_edit(self):
         folder = self.r.prepare()
         with closing(sqlite3.connect(self.db)) as c, c:c.execute("update providers set settings_config='{}' where id='provider-a'")

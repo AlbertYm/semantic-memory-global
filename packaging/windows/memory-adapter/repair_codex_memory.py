@@ -17,6 +17,7 @@ import tomllib
 import uuid
 
 MCP_NAMES = {"codebase_memory", "codegraph", "filesystem", "memory", "node_repl"}
+LEGACY_ADAPTER_SHA256 = "f05d41ffebe7f31dc336d3e9defc2199a5d613e51bfa16ea838537d0d3a57dfe"
 
 def sha(data): return hashlib.sha256(data).hexdigest()
 def dumps(obj): return json.dumps(obj, ensure_ascii=False, separators=(",", ":"))
@@ -38,13 +39,37 @@ def private_directory(path):
 def same_path(a, b):
     return os.path.normcase(os.path.abspath(a)) == os.path.normcase(os.path.abspath(b))
 
+def attested_legacy_registration(existing, desired, core):
+    """Recognize only the pinned earlier adapter and its matching local transaction."""
+    root = Path(core).parent.parent
+    legacy = root/"tools/semantic_memory_project_adapter_20261009.py"
+    args = existing.get("args", [])
+    if set(existing)-{"command", "args", "enabled", "env", "type"}: return False
+    if len(args) != 7 or args[:2] != ["-I", "-u"] or args[3] != "--core" or args[5] != "--data-root": return False
+    if not all(same_path(a,b) for a,b in ((args[2],legacy),(args[4],core),(args[6],root/"data"))): return False
+    if any(k not in desired["env"] or v != desired["env"][k] for k,v in existing.get("env",{}).items()): return False
+    if not legacy.is_file() or legacy.is_symlink() or sha(legacy.read_bytes()) != LEGACY_ADAPTER_SHA256: return False
+    # Do not infer ownership from the filename or an arbitrary Python executable.
+    # The exact registration (including interpreter) must match the old private receipt.
+    for index, path in enumerate((root/"backups").glob("project-adapter_*/transaction.json")):
+        if index >= 100: break
+        try:
+            if path.stat().st_size > 65536: continue
+            tx = json.loads(path.read_text(encoding="utf-8"))
+            if (tx.get("schema") == "semantic-memory-project-adapter-transaction/v1"
+                and tx.get("phase") == "APPLIED_RUNTIME_VERIFIED"
+                and tx.get("adapter_sha256") == LEGACY_ADAPTER_SHA256
+                and tx.get("new_registration") == existing): return True
+        except (OSError, ValueError): continue
+    return False
+
 def compatible(existing, desired, core):
     if existing is None or existing == desired: return True
     if same_path(existing.get("command", ""), core) and existing.get("args", []) == []:
         # A disabled native entry is repairable; extra options/unknown env require review.
         allowed = {"command", "args", "enabled", "env", "type"}
         return not (set(existing)-allowed) and set(existing.get("env", {})) <= set(desired["env"])
-    return False
+    return attested_legacy_registration(existing, desired, core)
 
 def patch_toml(raw, desired, core):
     before = parse(raw)
@@ -107,7 +132,8 @@ class Repair:
                         "enabled": True, "env": {"CBM_DATA_ROOT": str(self.root/"data"), "CBM_MEMORY_EMBED_BACKEND": "static", "CBM_MEMORY_AUTO_MAINTAIN": "0", "CBM_VERIFIED_LEARNING": "1"}}
 
     def protected(self):
-        paths = [self.codex_home/"auth.json", self.user_home/".mmcapi/settings.json", self.user_home/".mmcapi/codex_oauth_auth.json"]
+        paths = [self.codex_home/"auth.json", self.user_home/".mmcapi/settings.json", self.user_home/".mmcapi/codex_oauth_auth.json",
+                 self.root/"tools/semantic_memory_project_adapter_20261009.py"]
         return {str(p): sha(p.read_bytes()) if p.exists() else None for p in paths}
 
     def preflight(self):
@@ -281,7 +307,7 @@ class Repair:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("prepare", "apply", "verify", "rollback"))
+    parser.add_argument("mode", choices=("check", "prepare", "apply", "verify", "rollback"))
     parser.add_argument("--user-home", type=Path, default=Path.home())
     parser.add_argument("--codex-home", type=Path)
     parser.add_argument("--install-root", type=Path)
@@ -295,7 +321,17 @@ def main():
     repair = Repair(a.user_home, codex_home, root, db)
     folder = a.transaction
     if folder is None and repair.state.exists(): folder = Path(json.loads(repair.state.read_text(encoding="utf-8"))["transaction"])
-    if a.mode == "prepare":
+    if a.mode == "check":
+        repair.preflight()
+        patch_toml(repair.config.read_bytes() if repair.config.exists() else b"", repair.desired, repair.core)
+        if repair.db:
+            with closing(sqlite3.connect(repair.db.as_uri()+"?mode=ro",uri=True)) as c:
+                c.execute("begin"); repair.plan_rows(c)
+        result = {"status":"COMPATIBLE_ZERO_WRITE", "wrote":False}
+    elif a.mode == "rollback" and folder is None:
+        result = {"status":"NOTHING_TO_ROLLBACK", "code":"NO_PERSISTENT_REPAIR_TRANSACTION", "wrote":False,
+                  "registration_unchanged":True}
+    elif a.mode == "prepare":
         folder = repair.prepare(); result = {"status":"PREPARED", "transaction":str(folder)}
     elif a.mode == "apply":
         if folder and repair.state.exists():

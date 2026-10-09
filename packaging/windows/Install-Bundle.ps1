@@ -86,6 +86,13 @@ if (Test-Path -LiteralPath $InstallRoot) {
     }
 }
 
+if ($runtimeExistedBefore) {
+    $checkArguments = @('-Mode','Check','-UserHome',$UserHome,'-InstallRoot',$InstallRoot,'-CodexHome',$CodexHome,'-PythonExe',$PythonExe)
+    if ($MmcapiDatabase) { $checkArguments += @('-MmcapiDatabase',$MmcapiDatabase) }
+    $compatibility = Invoke-JsonScript (Join-Path $PSScriptRoot 'Repair-Codex-Memory.ps1') $checkArguments
+    if ([string]$compatibility.status -ne 'COMPATIBLE_ZERO_WRITE') { throw 'Registration preflight failed; no install changes made.' }
+}
+
 $pluginTransaction = $null
 $persistentTransaction = $null
 $runtimeInstalled = $false

@@ -199,4 +199,40 @@ class BundleTests(unittest.TestCase):
         self.assertEqual((codex/'config.toml').read_bytes(),prior_config)
         self.check_item(runtime,item)
 
+    def test_attested_early_adapter_upgrade_retains_memory_and_rolls_back(self):
+        if self.previous is None:self.skipTest('Previous release is required.')
+        user,codex,runtime,before=self.profile('early-adapter')
+        self.ps(self.previous,'Install-Bundle.ps1',user,codex,runtime)
+        self.ps(self.previous,'Repair-Codex-Memory.ps1',user,codex,runtime,'-Mode','Rollback')
+        legacy=runtime/'tools/semantic_memory_project_adapter_20261009.py'
+        shutil.copyfile(ROOT/'tests/fixtures/semantic_memory_project_adapter_20261009.py',legacy)
+        registration={'command':sys.executable,'args':['-I','-u',str(legacy),'--core',str(runtime/'bin/semantic-memory-mcp.exe'),'--data-root',str(runtime/'data')],
+            'enabled':True,'env':{'CBM_DATA_ROOT':str(runtime/'data'),'CBM_MEMORY_EMBED_BACKEND':'static','CBM_MEMORY_AUTO_MAINTAIN':'0'}}
+        from test_codex_memory_repair import repair
+        (codex/'config.toml').write_bytes(repair.patch_toml((codex/'config.toml').read_bytes(),registration,runtime/'bin/semantic-memory-mcp.exe'))
+        receipt=runtime/'backups/project-adapter_fixture';receipt.mkdir(parents=True)
+        (receipt/'transaction.json').write_text(json.dumps({'schema':'semantic-memory-project-adapter-transaction/v1',
+            'phase':'APPLIED_RUNTIME_VERIFIED','adapter_sha256':repair.LEGACY_ADAPTER_SHA256,'new_registration':registration}),encoding='utf-8')
+        pointer=(runtime/'state/current.json').read_bytes()
+        prior_core=runtime/'app/versions'/json.loads(pointer)['version_id']/'semantic-memory-mcp.exe'
+        client=Client(prior_core,runtime/'data',[registration['command'],*registration['args']])
+        try:
+            workspace=codex.parent/'early workspace 中文';workspace.mkdir()
+            _,task=client.tool('memory_task_begin',{'project':str(workspace),'workspace':str(workspace),'scope':'project',
+                'session_id':'early-session','turn_id':'early-turn','prompt_sha256':'a'*64,'prompt_length':1,'idempotency_key':'early-begin'})
+            _,project=client.tool('memory_resolve_project',{'task_id':task['task_id']})
+            _,event=client.tool('events',{'project':project['project_uuid'],'scope':'global','kind':'lesson','importance':.7,
+                'summary':'Synthetic memory before early adapter upgrade','content':'Isolated pre-upgrade knowledge must survive migration.','source':'isolated-release-fixture','payload':{}})
+            self.assertEqual(event['status'],'accepted')
+        finally:client.close()
+        prior_config=(codex/'config.toml').read_bytes()
+        self.ps(self.package,'Run-Bundle.ps1',user,codex,runtime)
+        self.check_item(runtime,event['item_id'])
+        self.capture(codex,runtime,'early-upgraded')
+        self.repair(user,codex,runtime,'Rollback')
+        self.ps(self.package,'Uninstall-Bundle.ps1',user,codex,runtime)
+        self.assertEqual((codex/'config.toml').read_bytes(),prior_config)
+        self.assertEqual((runtime/'state/current.json').read_bytes(),pointer)
+        self.check_item(runtime,event['item_id'])
+
 if __name__=='__main__':unittest.main(verbosity=2)
