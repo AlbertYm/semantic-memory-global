@@ -184,8 +184,9 @@ def run(core, root):
                 if meta.get("method") == "tools/list" and "result" in response:
                     ts = response["result"].get("tools", [])
                     response["result"]["tools"] = [upgrade_descriptor(t) for t in ts]
-                    if not response["result"].get("nextCursor"):
+                    if not meta.get("cursor"):
                         response["result"]["tools"].extend(upgrade_descriptor(t.copy()) for t in legacy_tools)
+                    if not response["result"].get("nextCursor"):
                         response["result"]["tools"].append(RESOLVER)
                 elif meta.get("name") == "describe_tool" and "result" in response:
                     result = response["result"]
@@ -255,7 +256,7 @@ def run(core, root):
                     emit(legacy_call(legacy_binary,request))
                     continue
                 if "id" in request:
-                    pending[str(request["id"])] = {"method": request.get("method"), "name": params.get("name")}
+                    pending[str(request["id"])] = {"method": request.get("method"), "name": params.get("name"),"cursor":params.get("cursor")}
                 child.stdin.write(json.dumps(request, ensure_ascii=False, separators=(",", ":")) + "\n")
                 child.stdin.flush()
             except Exception:

@@ -1041,6 +1041,8 @@ static const char *MCP_FIRST_PAGE_COMPAT_TOOLS[] = {
     "memories_retrieve",
     "memory_task_status",
     "memory_task_complete",
+    "memory_learning_status",
+    "memory_learning_control",
     "memory_feedback",
     "memory_observe_injection",
     "memory_observe_usage",

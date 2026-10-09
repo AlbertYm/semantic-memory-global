@@ -3,6 +3,7 @@ import { Pause, Play, RefreshCw, RotateCcw } from "lucide-react";
 import { managerFetch, callTool } from "../api/rpc";
 
 interface LearningState {
+  schema: string;
   enabled: boolean; ready: boolean; generation: number; last_code: number;
   batch_limit: number; pair_batch_limit: number;
   items: { item_id: string; positive: number; negative: number; utility: number; decay: number; status: string; restorable: boolean }[];
@@ -16,7 +17,12 @@ export function LearningTab({ project }: { project: string }) {
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(async () => {
     if (!project) return;
-    try { setData(await callTool<LearningState>("memory_learning_status", { project })); setError(""); }
+    try {
+      const result = await callTool<LearningState & { code?: string }>("memory_learning_status", { project });
+      if (result.schema !== "verified-learning/v1" || !Array.isArray(result.items) || !Array.isArray(result.associations))
+        throw new Error(result.code || "学习状态不可用");
+      setData(result); setError("");
+    }
     catch (value) { setError(value instanceof Error ? value.message : "读取失败"); }
   }, [project]);
   useEffect(() => { setData(null); void refresh(); }, [refresh]);
